@@ -1,0 +1,17 @@
+# VS Code editor settings
+.vscode/
+*.code-workspace
+
+# R / RStudio
+.Rhistory
+.RData
+.Ruserdata
+.Rproj.user/
+*.Rproj
+*.html
+
+# macOS
+.DS_Store
+
+# Windows
+Thumbs.db
