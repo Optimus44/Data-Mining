@@ -1,0 +1,229 @@
+---
+title: "ISLR Chapter 5 - Resampling Methods"
+author: "Wayne Rubangisa"
+subtitle: Exercise Solutions (1 and 9)
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+```
+
+# Exercise 1: Deriving the optimal investment weight (5.6)
+
+## The question behind the question
+
+Before differentiating anything, it's worth being clear on *why* this optimization problem exists. Suppose we're splitting a fixed amount of money between two risky assets $X$ and $Y$, putting fraction $\alpha$ into $X$ and the rest, $1-\alpha$, into $Y$. The return on the combined portfolio is the random variable $\alpha X + (1-\alpha) Y$, and its variance measures how risky that portfolio is. So "choose $\alpha$ to minimize risk" is just "minimize $\text{Var}(\alpha X + (1-\alpha)Y)$ over $\alpha$" — a one-variable calculus problem once we can write that variance out as a plain function of $\alpha$.
+
+## Step 1 — Write the variance as a function of $\alpha$
+
+Let $\sigma_X^2 = \text{Var}(X)$, $\sigma_Y^2 = \text{Var}(Y)$, $\sigma_{XY} = \text{Cov}(X,Y)$, and define
+
+$$f(\alpha) = \text{Var}\big(\alpha X + (1-\alpha)Y\big).$$
+
+Using $\text{Var}(Z+W) = \text{Var}(Z) + \text{Var}(W) + 2\,\text{Cov}(Z,W)$ and $\text{Var}(aZ) = a^2\text{Var}(Z)$, $\text{Cov}(aZ,bW)=ab\,\text{Cov}(Z,W)$:
+
+$$f(\alpha) = \alpha^2 \sigma_X^2 + (1-\alpha)^2 \sigma_Y^2 + 2\alpha(1-\alpha)\sigma_{XY}.$$
+
+## Step 2 — Differentiate
+
+Expand and collect by powers of $\alpha$:
+
+$$f(\alpha) = \left(\sigma_X^2+\sigma_Y^2-2\sigma_{XY}\right)\alpha^2 - 2\left(\sigma_Y^2 - \sigma_{XY}\right)\alpha + \sigma_Y^2.$$
+
+Differentiating with respect to $\alpha$ (the $\sigma$'s are fixed constants — they don't depend on $\alpha$):
+
+$$f'(\alpha) = 2\left(\sigma_X^2+\sigma_Y^2-2\sigma_{XY}\right)\alpha - 2\left(\sigma_Y^2-\sigma_{XY}\right).$$
+
+## Step 3 — Solve $f'(\alpha)=0$
+
+$$\left(\sigma_X^2+\sigma_Y^2-2\sigma_{XY}\right)\alpha = \sigma_Y^2 - \sigma_{XY}$$
+
+$$\Longrightarrow \quad \alpha = \frac{\sigma_Y^2 - \sigma_{XY}}{\sigma_X^2+\sigma_Y^2-2\sigma_{XY}} \qquad \text{— this is exactly (5.6).}$$
+
+(This step requires $\sigma_X^2+\sigma_Y^2-2\sigma_{XY} \neq 0$; see the note at the end.)
+
+## Step 4 — Check it's a minimum, not a maximum
+
+$$f''(\alpha) = 2\left(\sigma_X^2+\sigma_Y^2-2\sigma_{XY}\right).$$
+
+Notice $\sigma_X^2+\sigma_Y^2-2\sigma_{XY} = \text{Var}(X-Y)$ — apply the same sum rule to $X + (-Y)$. Variance can't be negative, so
+
+$$f''(\alpha) = 2\,\text{Var}(X-Y) \geq 0.$$
+
+$f$ is convex everywhere, so the critical point from Step 3 is a **global minimum**. $\blacksquare$
+
+## A quick numerical sanity check
+
+Rather than just trusting the algebra, let's verify it computationally: simulate correlated $X, Y$, compute $\alpha$ from the formula, and confirm that grid-searching over $\alpha$ doesn't find anything better.
+
+```{r ex1-sanity-check}
+set.seed(1)
+n <- 100000
+X <- rnorm(n, mean = 8, sd = 4)
+Y <- 0.6 * X + rnorm(n, mean = 2, sd = 5)   # Y correlated with X
+
+sigma2_X  <- var(X)
+sigma2_Y  <- var(Y)
+sigma_XY  <- cov(X, Y)
+
+alpha_formula <- (sigma2_Y - sigma_XY) / (sigma2_X + sigma2_Y - 2 * sigma_XY)
+alpha_formula
+
+# Grid search as an independent check
+alphas <- seq(0, 1, by = 0.001)
+port_var <- sapply(alphas, function(a) var(a * X + (1 - a) * Y))
+alpha_grid <- alphas[which.min(port_var)]
+alpha_grid
+```
+
+The formula's $\alpha$ and the grid-search minimizer agree (up to the grid resolution), confirming the derivation.
+
+```{r ex1-plot, fig.height=3.2, fig.width=5, fig.align='center'}
+plot(alphas, port_var, type = "l", lwd = 2,
+     xlab = expression(alpha), ylab = "Var(portfolio)",
+     main = "Portfolio variance vs. allocation")
+abline(v = alpha_formula, col = "red", lty = 2)
+```
+
+---
+
+# Exercise 9: The bootstrap applied to `Boston$medv`
+
+## Setup
+
+```{r load-data}
+library(ISLR2)
+library(boot)
+
+medv <- Boston$medv
+n <- length(medv)
+n
+```
+
+We never see the full population of Boston census tracts — only these `r n`. Every estimate below ($\hat\mu$, $\hat\mu_{med}$, $\hat\mu_{0.1}$) is a guess at an unknown population quantity, and the standard error tells us how much that guess would jump around if we'd drawn a different sample of `r n` tracts. Where a formula for the SE exists (the mean), we'll compute it two ways and compare. Where it doesn't (the median, the 10th percentile), the bootstrap is the only tool we have.
+
+## (a) Estimate the population mean, $\hat\mu$
+
+```{r 9a}
+mu.hat <- mean(medv)
+mu.hat
+```
+
+$\hat\mu \approx$ `r round(mu.hat, 3)` (thousands of dollars) is our point estimate of the average median home value across tracts.
+
+## (b) Standard error of $\hat\mu$, by formula
+
+$$\text{SE}(\hat\mu) = \frac{s}{\sqrt{n}}$$
+
+```{r 9b}
+se.formula <- sd(medv) / sqrt(n)
+se.formula
+```
+
+**Interpretation:** if we redrew samples of `r n` tracts over and over and recomputed $\hat\mu$ each time, those means would typically vary by about $\pm$ `r round(se.formula,3)` around the true population mean. That's a much smaller number than $s \approx$ `r round(sd(medv),2)` because $s$ describes spread of *individual tracts*, while SE describes spread of the *sample mean*.
+
+## (c) Standard error of $\hat\mu$, by bootstrap
+
+The idea: resample the `r n` observations **with replacement**, recompute $\hat\mu$ on each resample, and look at how much those bootstrap means vary.
+
+```{r 9c}
+boot.mean <- function(data, idx) mean(data[idx])
+
+set.seed(1)
+boot.out.mean <- boot(medv, boot.mean, R = 1000)
+boot.out.mean
+
+se.boot.mean <- sd(boot.out.mean$t)
+se.boot.mean
+```
+
+Bootstrap SE (`r round(se.boot.mean,4)`) vs. formula SE (`r round(se.formula,4)`) — they're nearly identical. That agreement is the whole point: it confirms the bootstrap is correctly approximating the same sampling variability the formula computes analytically, which is reassuring since we're about to rely on it for statistics that *have no formula* (parts f and h).
+
+## (d) 95% confidence interval for the mean
+
+```{r 9d}
+ci.boot <- c(mu.hat - 2 * se.boot.mean, mu.hat + 2 * se.boot.mean)
+ci.boot
+
+t.test(medv)$conf.int
+```
+
+The bootstrap interval `r sprintf("[%.3f, %.3f]", ci.boot[1], ci.boot[2])` and the $t$-test interval are almost the same width, both centered near `r round(mu.hat,2)`. The $t$-interval is marginally tighter since it uses the exact critical value $t_{0.975,\,n-1}$ instead of the rounded value 2 — negligible here since $n$ is large.
+
+## (e) Estimate the population median, $\hat\mu_{med}$
+
+```{r 9e}
+med.hat <- median(medv)
+med.hat
+```
+
+$\hat\mu_{med} =$ `r med.hat`, a bit below $\hat\mu \approx$ `r round(mu.hat,2)`, consistent with `medv` being right-skewed (a few very expensive tracts pull the mean up).
+
+## (f) Standard error of $\hat\mu_{med}$, by bootstrap
+
+There's no clean closed-form formula for the SE of a median — this is exactly the case the bootstrap exists for.
+
+```{r 9f}
+boot.median <- function(data, idx) median(data[idx])
+
+set.seed(1)
+boot.out.median <- boot(medv, boot.median, R = 1000)
+boot.out.median
+
+se.boot.median <- sd(boot.out.median$t)
+se.boot.median
+```
+
+**Comment:** the median's bootstrap SE (`r round(se.boot.median,4)`) is close to — slightly smaller than — the mean's (`r round(se.boot.mean,4)`), so it's estimated with comparable precision, even without a formula to tell us that in advance.
+
+## (g) Estimate the 10th percentile, $\hat\mu_{0.1}$
+
+```{r 9g}
+q10.hat <- quantile(medv, 0.1)
+q10.hat
+```
+
+About 10% of tracts have `medv` at or below `r as.numeric(q10.hat)` (thousand dollars).
+
+## (h) Standard error of $\hat\mu_{0.1}$, by bootstrap
+
+```{r 9h}
+boot.q10 <- function(data, idx) quantile(data[idx], 0.1)
+
+set.seed(1)
+boot.out.q10 <- boot(medv, boot.q10, R = 1000)
+boot.out.q10
+
+se.boot.q10 <- sd(boot.out.q10$t)
+se.boot.q10
+```
+
+**Comment:** the 10th-percentile SE (`r round(se.boot.q10,4)`) is clearly the largest of the three. That's expected — a tail quantile is pinned down by fewer nearby observations than a central statistic like the mean or median, so it swings more from resample to resample.
+
+## All three bootstrap distributions, side by side
+
+```{r 9-combined-plot, fig.height=3, fig.width=8}
+par(mfrow = c(1, 3))
+hist(boot.out.mean$t, main = "Bootstrap: mean", xlab = expression(hat(mu)^"*"), col = "grey85")
+abline(v = mu.hat, col = "red", lwd = 2)
+hist(boot.out.median$t, main = "Bootstrap: median", xlab = expression(hat(mu)[med]^"*"), col = "grey85")
+abline(v = med.hat, col = "red", lwd = 2)
+hist(boot.out.q10$t, main = "Bootstrap: 10th pct.", xlab = expression(hat(mu)[0.1]^"*"), col = "grey85")
+abline(v = q10.hat, col = "red", lwd = 2)
+```
+
+## Summary
+
+```{r summary, echo=FALSE}
+summary.tab <- data.frame(
+  Statistic = c("Mean", "Median", "10th percentile"),
+  Estimate  = c(mu.hat, med.hat, as.numeric(q10.hat)),
+  SE_formula = c(se.formula, NA, NA),
+  SE_bootstrap = c(se.boot.mean, se.boot.median, se.boot.q10)
+)
+knitr::kable(summary.tab, digits = 4,
+             col.names = c("Statistic", "Estimate", "SE (formula)", "SE (bootstrap)"))
+```
+
+*Bootstrap SEs use `R = 1000` resamples with `set.seed(1)`; re-running with a different seed or a larger `R` will shift the last decimal or two but not the overall pattern.*
