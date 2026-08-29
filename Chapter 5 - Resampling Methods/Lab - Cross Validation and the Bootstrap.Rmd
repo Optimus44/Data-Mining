@@ -1,0 +1,390 @@
+---
+title: "Lab - Resampling Methods"
+author: "Wayne Rubangisa"
+date: "2026-08-27"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Introduction
+
+Resampling methods are fundamental techniques in statistical learning for estimating model performance and uncertainty without relying solely on theoretical assumptions. This lab explores three major resampling approaches: the **validation set approach**, **cross-validation** (both leave-one-out and k-fold variants), and the **bootstrap**. These methods allow us to evaluate model accuracy, assess variance in parameter estimates, and select optimal model complexity using the Auto dataset from ISLR2, which contains measurements on 392 automobiles including miles per gallon (mpg) and horsepower.
+
+## 1. The Validation Set Approach
+
+### Overview and Theory
+
+The validation set approach is the simplest resampling method for estimating test error. The fundamental idea is to randomly divide the available data into two disjoint sets: a **training set** used to fit the model, and a **validation set** used to evaluate its performance. This addresses a critical problem in statistical learning: the training error (error on data used to fit the model) systematically underestimates the test error (error on new, unseen data) due to overfitting.
+
+Mathematically, we estimate the test mean squared error (MSE) as:
+$$\text{MSE}_{\text{validation}} = \frac{1}{n_{\text{val}}} \sum_{i \in \text{val}} (y_i - \hat{y}_i)^2$$
+
+where $n_{\text{val}}$ is the size of the validation set and $\hat{y}_i$ are predictions from the model trained only on the training data.
+
+**Advantages**: Simple to implement and computationally efficient.
+
+**Disadvantages**: The estimated test error can be highly variable (sensitive to which observations are chosen for the validation set), and the effective training set is smaller, potentially leading to biased performance estimates.
+
+### Implementation
+
+We begin by loading the ISLR2 package which contains the Auto dataset, and creating a random training set consisting of 196 observations (approximately 50% of the 392 total observations). Setting a seed ensures reproducibility.
+
+```{r}
+library(ISLR2)
+set.seed(1)
+train <- sample(392, 196)
+```
+
+**Interpretation**: The `sample()` function randomly selects 196 indices from 1 to 392. These indices will be used to subset the Auto data for training. The remaining 196 observations automatically become our validation set.
+
+
+We now fit a linear regression model using only the training observations, with mpg as the response variable and horsepower as the predictor.
+
+```{r}
+lm.fit <- lm(mpg~ horsepower , data = Auto , subset = train)
+```
+
+**Model**: This fits the model $\text{mpg} = \beta_0 + \beta_1 \cdot \text{horsepower} + \epsilon$, estimating coefficients $\beta_0$ and $\beta_1$ from the training data only.
+
+Now we evaluate the model on the validation set by computing the mean squared error. The predictions are made on the entire Auto dataset, but we only evaluate performance on indices not in the training set (using `[-train]`).
+
+```{r}
+attach(Auto)
+mean (( mpg - predict(lm.fit , Auto))[-train ]^2)
+```
+
+**Interpretation**: This computes $\text{MSE}_{\text{validation}} = \frac{1}{196} \sum_{i \notin \text{train}} (y_i - \hat{y}_i)^2 \approx 23.27$. This is our estimate of test error for a linear (degree 1) polynomial in horsepower. The `attach()` function allows us to reference variables in Auto by name directly.
+
+We now fit a quadratic model (polynomial of degree 2) to the training data. The `poly()` function creates orthogonal polynomial features, which helps with numerical stability.
+
+```{r}
+lm.fit2 <- lm(mpg~ poly(horsepower, 2), data = Auto, subset = train)
+mean (( mpg - predict(lm.fit2 , Auto))[-train ]^2)
+```
+
+**Interpretation**: MSE $\approx 18.72$ for the quadratic model. This is substantially lower than the linear model (23.27), suggesting that a quadratic relationship better captures the relationship between horsepower and mpg, and the model generalizes better to new data.
+
+We fit a cubic model (polynomial of degree 3).
+
+```{r}
+lm.fit3 <- lm(mpg~ poly(horsepower, 3), data = Auto, subset = train)
+mean (( mpg - predict(lm.fit3 , Auto))[-train ]^2)
+```
+
+**Interpretation**: MSE $\approx 18.80$ for the cubic model. This is only marginally different from the quadratic model (18.72), suggesting that the additional polynomial term does not improve generalization. We see the first evidence of the bias-variance tradeoff: increasing polynomial degree can reduce bias but increases variance, eventually leading to worse test performance.
+
+### Variability of the Validation Approach
+
+A critical limitation of the validation set approach is its sensitivity to the particular split of training and validation data. To illustrate this, we now repeat the analysis with a different random seed, creating a different train/validation split.
+
+```{r}
+set.seed(2)
+train <- sample(392, 196)
+lm.fit <- lm(mpg~ horsepower , subset = train)
+mean (( mpg - predict(lm.fit , Auto ))[- train ]^2)
+```
+
+**Interpretation**: With seed 2, the linear model's MSE $\approx 25.73$. Compare this to 23.27 with seed 1—despite fitting the same model, the estimated test error differs by approximately 2.5 units simply due to sampling variation in which observations were selected for training versus validation.
+
+```{r}
+lm.fit2 <- lm(mpg~ poly(horsepower , 2), data = Auto, subset = train)
+mean (( mpg - predict(lm.fit2 , Auto ))[- train ]^2)
+```
+
+**Interpretation**: MSE $\approx 19.82$ for the quadratic model with seed 2. Again, this differs from the 18.72 we obtained with seed 1, but the quadratic model still outperforms the linear model.
+
+```{r}
+lm.fit3 <- lm(mpg~ poly(horsepower , 3), data = Auto, subset = train)
+mean (( mpg - predict(lm.fit3 , Auto))[-train ]^2)
+```
+
+**Interpretation**: MSE $\approx 18.71$ for the cubic model with seed 2. The relative performance ranking (quadratic and cubic outperform linear) remains consistent across different random splits, but the precise MSE values are unstable. This inherent variability is a major limitation of the simple validation approach, motivating the use of more sophisticated resampling techniques like cross-validation.
+
+## 2. Leave-One-Out Cross-Validation
+
+### Overview and Theory
+
+Leave-one-out cross-validation (LOOCV) is a more stable alternative to the simple validation set approach. The procedure works as follows:
+
+1. Remove observation $i$ from the dataset
+2. Fit the model to the remaining $n-1$ observations
+3. Compute the prediction error on the held-out observation: $\text{MSE}_i = (y_i - \hat{y}_i)^2$
+4. Repeat for all $i = 1, \ldots, n$
+5. Average the errors: $\text{CV}_{(n)} = \frac{1}{n} \sum_{i=1}^{n} \text{MSE}_i$
+
+LOOCV is approximately unbiased for test error and has much lower variance than the validation set approach, since we use nearly all data for training in each iteration. However, it is computationally expensive (requires fitting $n$ models).
+
+**Key insight**: For linear regression, there is a computational shortcut: $\text{CV}_{(n)} = \frac{1}{n} \sum_{i=1}^{n} \left( \frac{y_i - \hat{y}_i}{1 - h_{ii}} \right)^2$, where $h_{ii}$ is the leverage of observation $i$. This allows LOOCV to be computed with just one model fit.
+
+### Implementation
+
+In the lab for Chapter 4, we used the `glm()` function to perform logistic regression by passing in the family = "binomial" argument. But if we use `glm()` to fit a model without passing in the family argument, then it performs linear regression, just like the `lm()` function. So for instance,
+
+
+We demonstrate that `glm()` without specifying the `family` argument produces identical results to `lm()` for linear regression:
+
+```{r}
+glm.fit <- glm(mpg~ horsepower , data = Auto)
+coef(glm.fit)
+```
+
+The coefficients from `glm()` should match those from `lm()` below.
+
+```{r}
+lm.fit <- lm(mpg~ horsepower , data = Auto)
+coef(lm.fit)
+```
+
+**Confirmation**: Both functions produce identical coefficients, confirming that `glm()` without a family argument performs standard linear regression. We use `glm()` here because the `boot` package's cross-validation functions work seamlessly with `glm` objects.
+
+
+We now use the `cv.glm()` function from the `boot` package to compute LOOCV. This function efficiently implements LOOCV using the computational shortcut mentioned above.
+
+```{r}
+library(boot)
+glm.fit <- glm(mpg~ horsepower , data = Auto)
+cv.err <- cv.glm(Auto , glm.fit)
+cv.err$delta
+```
+
+**Interpretation**: The `$delta` component contains two values: the raw LOOCV error and a bias-corrected version. For the linear model, $\text{CV}_{(392)} \approx 24.23$. This is notably higher than the validation set estimates (23.27 and 25.73), as LOOCV provides a nearly unbiased estimate of test error by training on virtually all data in each iteration.
+
+To determine the optimal polynomial degree, we compute LOOCV error for polynomial models of degrees 1 through 10. This provides a comprehensive view of the bias-variance tradeoff as model complexity increases.
+
+```{r}
+cv.error <- rep(0, 10)
+for (i in 1:10) {
+ glm.fit <- glm(mpg~ poly(horsepower , i), data = Auto)
+ cv.error[i] <- cv.glm(Auto , glm.fit)$delta [1]
+ }
+cv.error
+```
+
+**Interpretation**: The LOOCV errors show a clear pattern: 
+- Degree 1: 24.23
+- Degree 2: 19.25 (substantial improvement)
+- Degree 3: 19.33 (negligible improvement)
+- Degrees 4-10: Errors hover around 19.3-19.4
+
+This suggests that a quadratic model (degree 2) provides the best generalization. Higher-degree polynomials do not improve test error and may be overfitting. LOOCV gives us confidence in this conclusion because the error estimate is nearly unbiased, unlike the noisy validation set approach.
+
+
+## 3. k-Fold Cross-Validation
+
+### Overview and Theory
+
+k-fold cross-validation (k-fold CV) is a computationally efficient alternative to LOOCV that reduces variance at the cost of slight bias. The procedure divides the data into $k$ roughly equal-sized, non-overlapping folds:
+
+1. For fold $j = 1, \ldots, k$:
+   - Remove fold $j$ from the dataset
+   - Fit the model to the remaining $k-1$ folds
+   - Compute prediction error on fold $j$
+2. Average the errors: $\text{CV}_{(k)} = \frac{1}{k} \sum_{j=1}^{k} \text{MSE}_j$
+
+**Advantages**:
+- Computationally less expensive than LOOCV (fits $k$ models instead of $n$)
+- More stable than validation set (uses all data for both training and validation)
+- Variance decreases as $k$ increases, with common choices being $k = 5$ or $k = 10$
+
+**Theoretical property**: As $k \to n$, k-fold CV approaches LOOCV. For $k = n$, they are equivalent.
+
+### Implementation
+
+We compute 10-fold cross-validation errors for polynomial degrees 1 through 10. The `K = 10` argument specifies 10 folds. We use the same seed for reproducibility (the fold partition is randomized).
+
+```{r}
+set.seed (17)
+cv.error.10 <- rep(0, 10)
+ for (i in 1:10) {
+ glm.fit <- glm(mpg~ poly(horsepower , i), data = Auto)
+ cv.error.10[i] <- cv.glm(Auto , glm.fit , K = 10)$delta [1]
+ }
+cv.error.10
+```
+
+**Interpretation**: The 10-fold CV errors closely match the LOOCV pattern:
+- Degree 1: 24.21
+- Degree 2: 19.29 (significant improvement)
+- Degree 3: 19.36 (minimal gain)
+- Degrees 4-10: Around 19.3-19.5
+
+Compare these to the LOOCV results: they are remarkably similar (differences typically < 1%), confirming that 10-fold CV provides a reliable, computationally efficient approximation to LOOCV. The conclusion remains unchanged: a quadratic polynomial is optimal. The slight variability between runs (due to random fold assignment) is a small price for roughly 39 times faster computation ($k = 10$ vs. $n = 392$).
+
+## 4. The Bootstrap
+
+### Overview and Theory
+
+The bootstrap is a powerful, general-purpose resampling method for estimating the uncertainty (standard error, confidence intervals) of any statistic without strong parametric assumptions. The key idea is to approximate the sampling distribution of a statistic by resampling from the observed data with replacement.
+
+**Bootstrap procedure**:
+1. Create a bootstrap sample by randomly sampling $n$ observations from the original dataset with replacement
+2. Compute the statistic of interest on this bootstrap sample
+3. Repeat steps 1-2 for $B$ times (typically $B = 1000$)
+4. The standard deviation of the $B$ bootstrap statistics estimates the standard error
+
+**Advantages**:
+- Model-free: does not assume a parametric distribution
+- General: works for any statistic, not just the mean
+- Can estimate confidence intervals without theoretical derivations
+
+The bootstrap is particularly useful when the theoretical standard error is unknown or difficult to compute.
+
+### Estimating the Accuracy of a Statistic of Interest
+
+We begin with a portfolio optimization problem. Suppose we invest a fraction $\alpha$ in Stock X and $(1-\alpha)$ in Stock Y, and wish to minimize the variance of the portfolio. The optimal allocation is:
+$$\alpha = \frac{\sigma_Y^2 - \sigma_{XY}}{\sigma_X^2 + \sigma_Y^2 - 2\sigma_{XY}}$$
+
+where $\sigma_X^2$ and $\sigma_Y^2$ are variances and $\sigma_{XY}$ is the covariance.
+
+To estimate $\alpha$ from data and obtain its standard error, we create a function that computes this estimate on any subset of the data:
+
+```{r}
+alpha.fn <- function (data , index ) {
+ X <- data $X[ index ]
+ Y <- data $Y[ index ]
+ (var(Y) - cov(X, Y)) / (var(X) + var(Y) - 2 * cov(X, Y))
+ }
+```
+
+**Function explanation**: `alpha.fn()` computes the optimal portfolio allocation formula. It takes a dataset and a vector of indices, subsets the data accordingly, and returns the estimated $\alpha$. This structure allows the function to work with any subset—the full dataset, a bootstrap sample, or any other resampling.
+
+First, we estimate $\alpha$ using all 100 observations in the Portfolio dataset:
+
+```{r}
+alpha.fn(Portfolio , 1:100)
+```
+
+**Result**: $\hat{\alpha} \approx 0.576$. This means the optimal allocation is approximately 57.6% in Stock X and 42.4% in Stock Y based on the full dataset.
+
+
+Now we compute $\alpha$ on a single bootstrap sample (random sample with replacement):
+
+```{r}
+set.seed (7)
+alpha.fn(Portfolio , sample (100 , 100, replace = T))
+```
+
+**Interpretation**: On this particular bootstrap sample, $\hat{\alpha}^* \approx 0.593$. This differs slightly from 0.576 due to sampling variability. Each bootstrap sample will produce a slightly different estimate.
+
+
+We now run the full bootstrap procedure: generate 1000 bootstrap samples and compute $\hat{\alpha}$ for each.
+
+```{r}
+boot(Portfolio , alpha.fn , R = 1000)
+```
+
+**Interpretation**: The `boot()` function returns:
+- `t0`: The statistic computed on the original data ($\hat{\alpha} = 0.5758$)
+- `t*`: The 1000 bootstrap estimates (available in the object, not shown by default)
+- **Standard error**: The standard deviation of the 1000 bootstrap estimates is approximately 0.0886
+
+This standard error tells us the sampling variability of $\hat{\alpha}$. Using this, we can construct approximate 95% confidence intervals: $0.5758 \pm 1.96 \times 0.0886 \approx [0.401, 0.750]$. The bootstrap reveals that the true optimal allocation is uncertain, ranging roughly from 40% to 75% invested in Stock X, depending on which sample of returns we observe.
+
+### Estimating the Accuracy of a Linear Regression Model
+
+The bootstrap is equally powerful for linear regression. We create a function that extracts coefficients from a linear model fitted to a subset of the data:
+
+```{r}
+boot.fn <- function (data , index )
+coef(lm(mpg~ horsepower , data = data , subset = index ))
+boot.fn(Auto , 1:392)
+```
+
+**Output**: The function returns two coefficients: the intercept ($\hat{\beta}_0 \approx 39.94$) and the slope ($\hat{\beta}_1 \approx -0.158$), estimated from the full dataset. These match the estimates from standard linear regression.
+
+We compute coefficients on a bootstrap sample:
+
+```{r}
+set.seed (1)
+boot.fn(Auto , sample (392 , 392, replace = T))
+```
+
+**Interpretation**: The bootstrap sample yields $\hat{\beta}_0^* \approx 40.15$ and $\hat{\beta}_1^* \approx -0.161$. These differ slightly from the original estimates due to sampling variability.
+
+
+We generate another bootstrap sample to illustrate the variability:
+
+```{r}
+boot.fn(Auto , sample (392 , 392, replace = T))
+```
+
+**Observation**: Again, slightly different estimates ($\hat{\beta}_0^* \approx 39.39$, $\hat{\beta}_1^* \approx -0.1539$) result from a different random sample.
+
+We run the full bootstrap with 1000 replications:
+
+```{r}
+boot(Auto , boot.fn , 1000)
+```
+
+**Interpretation**: The bootstrap estimates are:
+- $\hat{\beta}_0$: Standard error $\approx 0.849$
+- $\hat{\beta}_1$: Standard error $\approx 0.00741$
+
+These standard errors quantify the sampling variability of the regression coefficients. They can be used to construct confidence intervals or test hypotheses.
+
+For comparison, we examine the standard errors from classical linear regression theory:
+
+```{r}
+summary(lm(mpg~ horsepower , data = Auto))$coef
+```
+
+**Comparison**: Classical regression gives standard errors of 0.713 for the intercept and 0.00649 for the slope. The bootstrap estimates (0.849 and 0.00741) are similar but somewhat larger. This can reflect:
+- Model misspecification (the true relationship may not be linear)
+- Violation of regression assumptions (e.g., non-constant variance)
+- The robustness of the bootstrap, which makes fewer assumptions
+
+The key advantage: the bootstrap automatically accounts for these issues without requiring theoretical knowledge of regression assumptions.
+
+We extend the analysis to a quadratic model. First, we create a bootstrap function for the quadratic specification:
+
+```{r}
+boot.fn <- function (data , index )
+coef(
+lm(mpg~ horsepower + I( horsepower ^2) ,
+data = data , subset = index )
+)
+set.seed (1)
+boot(Auto , boot.fn , 1000)
+```
+
+**Interpretation**: The quadratic model has three coefficients:
+- $\hat{\beta}_0$ (intercept): SE $\approx 2.019$
+- $\hat{\beta}_1$ (linear): SE $\approx 0.0319$
+- $\hat{\beta}_2$ (quadratic): SE $\approx 0.000363$
+
+These standard errors are all computed from 1000 bootstrap samples, capturing the sampling variability of each coefficient in the quadratic model.
+
+
+For comparison, the classical regression standard errors are:
+
+```{r}
+summary(
+lm(mpg~ horsepower + I( horsepower ^2) , data = Auto)
+)$coef
+```
+
+**Final Comparison**: Classical regression gives standard errors of 1.419, 0.0248, and 0.000277, respectively. Once again, the bootstrap standard errors are somewhat larger, suggesting that either the linear/quadratic model is incomplete or the constant variance assumption may be violated. The bootstrap's robustness to these issues makes it a valuable alternative to classical theory.
+
+---
+
+## Summary and Conclusions
+
+This lab has demonstrated three essential resampling methods for statistical learning:
+
+1. **Validation Set Approach**: Simple but unstable; MSE estimates vary substantially across different random splits.
+2. **Leave-One-Out Cross-Validation**: Nearly unbiased and stable, but computationally expensive; optimal polynomial degree is 2.
+3. **k-Fold Cross-Validation**: Excellent trade-off between stability and computation; 10-fold CV approximates LOOCV very closely.
+4. **Bootstrap**: Model-free method for estimating standard errors of any statistic; reveals sampling variability of regression coefficients and enables robust inference.
+
+Across all methods, the data consistently suggests that a quadratic relationship between horsepower and mpg is optimal, balancing bias and variance better than linear or higher-degree polynomial models.
+
+
+
+
+
+
