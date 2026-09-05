@@ -1,0 +1,387 @@
+\documentclass[12pt]{article}
+\usepackage[a4paper,margin=1in]{geometry}
+\usepackage{setspace}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{longtable}
+\usepackage{hyperref}
+
+\setstretch{1.15}
+
+\title{Comprehensive Solutions: Statistical Learning and Linear Regression Exercises}
+\author{MSc Big Data Analytics}
+\date{\today}
+
+\begin{document}
+\begin{titlepage}
+\centering
+\vspace*{1.5cm}
+
+{\Large \textbf{ADVENTIST UNIVERSITY OF CENTRAL AFRICA}\par}
+\vspace{0.4cm}
+{\large \textbf{MASTERS IN BIG DATA ANALYTICS}\par}
+\vspace{0.4cm}
+
+\vspace{1.8cm}
+\vspace{0.5cm}
+{\Large \textbf{Comprehensive Solutions: Statistical Learning and Linear Regression Exercises}\par}
+
+\vspace{1.5cm}
+\begin{tabular}{>{\bfseries}p{6cm}p{8cm}}
+Programme: & MSc Big Data Analytics \\
+Course Title: & Information Retrieval and Data Mining \\
+Course Code: & MSDA 9124 \\
+Lecturer: & Dr. Pacifique Nizeyimana \\
+Student Name: & Wayne Rubangisa \\
+Student ID: & 101220 \\
+\end{tabular}
+
+\vfill
+{\normalsize \textit{Prepared in \LaTeX\ for academic submission.}\par}
+\vspace{0.8cm}
+\end{titlepage}
+
+\section*{Question 1}
+For each case, we compare a \textbf{flexible} method (low bias, high variance) with an \textbf{inflexible} method (high bias, low variance), using the bias-variance trade-off.
+
+\subsection*{(a) Extremely large $n$, small $p$}
+\textbf{Expected winner: flexible method (generally better).}
+
+When $n$ is very large, parameter estimates become stable even for models with higher effective complexity. Since $p$ is small, the feature space is not highly sparse, so a flexible method can learn subtle structure without suffering severe variance inflation. In this regime, the variance penalty of flexibility is reduced by large sample size, while bias reduction remains valuable.
+
+\textbf{Conclusion:} with enough data and few predictors, flexibility is usually advantageous.
+
+\subsection*{(b) Extremely large $p$, small $n$}
+\textbf{Expected winner: inflexible method (generally better).}
+
+Here we are in a high-dimensional, low-sample-size setting ($p \gg n$). Flexible methods can fit noise very easily, leading to overfitting and unstable estimates. The variance term becomes dominant, and prediction error typically increases out of sample. Inflexible or regularized models constrain complexity and are therefore more robust.
+
+\textbf{Conclusion:} with many predictors and few observations, inflexible methods are usually preferable.
+
+\subsection*{(c) Highly non-linear relationship between predictors and response}
+\textbf{Expected winner: flexible method (generally better).}
+
+If the true signal is strongly non-linear, inflexible methods (for example strict linear forms) can incur large approximation bias. Flexible methods are designed to capture curvature, interactions, and local structure.
+
+\textbf{Conclusion:} when non-linearity is strong and data quality is reasonable, flexible methods tend to outperform due to lower bias.
+
+\subsection*{(d) Extremely high error variance $\sigma^2 = \mathrm{Var}(\epsilon)$}
+\textbf{Expected winner: inflexible method (generally better).}
+
+When irreducible noise is very high, aggressive flexibility often starts fitting random fluctuations rather than signal. This amplifies variance without reducing irreducible error. A simpler model is usually more stable and generalizes better.
+
+\textbf{Conclusion:} high-noise settings generally favor less flexible approaches.
+
+\section*{Question 2: Boston Housing Data}
+We work with the \texttt{Boston} data from \texttt{ISLR2}.
+
+\subsection*{(a) Dimensions and meaning of rows/columns}
+\begin{itemize}
+\item Number of rows: $506$
+\item Number of columns: $13$
+\end{itemize}
+
+Interpretation:
+\begin{itemize}
+\item Each row is a Boston census tract (observation/unit).
+\item Each column is a variable measured on that tract.
+\item Variables include socioeconomic, environmental, accessibility, and housing-value characteristics (for example \texttt{crim}, \texttt{rm}, \texttt{tax}, \texttt{lstat}, \texttt{medv}).
+\end{itemize}
+
+\subsection*{(b) Pairwise scatterplots of predictors and findings}
+A standard command is:
+\begin{verbatim}
+pairs(Boston)
+\end{verbatim}
+
+Observed structure is not random; several strong pairwise trends appear. Correlation magnitudes supporting the visual patterns include:
+\begin{center}
+\begin{tabular}{lrr}
+\toprule
+Pair & Correlation & Interpretation \\
+\midrule
+\texttt{rad} vs \texttt{tax} & $0.910$ & very strong positive linear relation \\
+\texttt{nox} vs \texttt{dis} & $-0.769$ & strong negative relation \\
+\texttt{indus} vs \texttt{nox} & $0.764$ & strong positive relation \\
+\texttt{age} vs \texttt{dis} & $-0.748$ & older housing where distance to employment centers is lower \\
+\texttt{lstat} vs \texttt{medv} & $-0.738$ & socioeconomic disadvantage linked to lower house value \\
+\texttt{rm} vs \texttt{medv} & $0.695$ & more rooms linked to higher house value \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{Summary finding:} the predictors display substantial multicollinearity structure and clear socioeconomic-geographic gradients.
+
+\subsection*{(c) Are predictors associated with per-capita crime rate (\texttt{crim})?}
+Yes. Several predictors are strongly associated with \texttt{crim}. Using pairwise correlations:
+\begin{itemize}
+\item Positive associations: \texttt{rad} ($0.626$), \texttt{tax} ($0.583$), \texttt{lstat} ($0.456$), \texttt{nox} ($0.421$), \texttt{indus} ($0.407$), \texttt{age} ($0.353$), \texttt{ptratio} ($0.290$).
+\item Negative associations: \texttt{medv} ($-0.388$), \texttt{dis} ($-0.380$), \texttt{rm} ($-0.219$), \texttt{zn} ($-0.201$).
+\item Near-zero: \texttt{chas} ($-0.056$), indicating weak linear relation with crime.
+\end{itemize}
+
+Simple one-predictor regressions confirm statistical significance for nearly all except \texttt{chas} (non-significant at conventional levels).
+
+\textbf{Interpretation:} higher crime tends to occur in tracts with higher highway access index, higher tax burden, higher pollution/industrial activity, and lower housing quality/value indicators.
+
+\subsection*{(d) High crime/tax/pupil-teacher ratio tracts and predictor ranges}
+\textbf{Ranges (min to max):}
+\begin{center}
+\begin{tabular}{lr}
+\toprule
+Variable & Range \\
+\midrule
+\texttt{crim} & $0.00632$ to $88.9762$ \\
+\texttt{zn} & $0$ to $100$ \\
+\texttt{indus} & $0.46$ to $27.74$ \\
+\texttt{chas} & $0$ to $1$ \\
+\texttt{nox} & $0.385$ to $0.871$ \\
+\texttt{rm} & $3.561$ to $8.780$ \\
+\texttt{age} & $2.9$ to $100$ \\
+\texttt{dis} & $1.1296$ to $12.1265$ \\
+\texttt{rad} & $1$ to $24$ \\
+\texttt{tax} & $187$ to $711$ \\
+\texttt{ptratio} & $12.6$ to $22.0$ \\
+\texttt{lstat} & $1.73$ to $37.97$ \\
+\texttt{medv} & $5$ to $50$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{Comments on extremes:}
+\begin{itemize}
+\item Crime is extremely right-skewed: median $\approx 0.257$, max $88.98$. So a small subset has exceptionally high crime.
+\item Tax also has a pronounced upper tail: median $330$, upper quartile $666$, max $711$.
+\item Pupil-teacher ratio is narrower in spread: median $19.05$, max $22.0$.
+\end{itemize}
+
+So yes, some tracts are particularly extreme for crime and tax, while \texttt{ptratio} has less dramatic dispersion.
+
+\subsection*{(e) Number of tracts bounding the Charles River}
+\[
+\sum_{i=1}^{506} \mathbf{1}(\texttt{chas}_i = 1) = 35.
+\]
+
+So \textbf{35 tracts} bound the Charles River.
+
+\subsection*{(f) Median pupil-teacher ratio}
+The median of \texttt{ptratio} is:
+\[
+\mathrm{median}(\texttt{ptratio}) = 19.05.
+\]
+
+\subsection*{(g) Tract with lowest median home value (\texttt{medv})}
+The minimum \texttt{medv} is $5.0$, occurring at tract index $399$ (in this row ordering), with:
+\begin{center}
+\begin{tabular}{lr}
+\toprule
+Variable & Value \\
+\midrule
+\texttt{crim} & 38.3518 \\
+\texttt{zn} & 0 \\
+\texttt{indus} & 18.10 \\
+\texttt{chas} & 0 \\
+\texttt{nox} & 0.693 \\
+\texttt{rm} & 5.453 \\
+\texttt{age} & 100 \\
+\texttt{dis} & 1.4896 \\
+\texttt{rad} & 24 \\
+\texttt{tax} & 666 \\
+\texttt{ptratio} & 20.2 \\
+\texttt{lstat} & 30.59 \\
+\texttt{medv} & 5.0 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{Comparison to overall ranges:}
+\begin{itemize}
+\item Very high crime, high pollution, high tax, high accessibility index, and very high lower-status percentage.
+\item Rooms per dwelling are low-to-moderate relative to the full range.
+\item Housing is old (\texttt{age}=100) and close to employment centers (low \texttt{dis}).
+\end{itemize}
+
+\textbf{Finding:} the lowest-value tract combines many characteristics typically associated with urban deprivation and lower property values.
+
+\subsection*{(h) Tracts with more than seven rooms and more than eight rooms}
+\[
+\#\{i: \texttt{rm}_i > 7\} = 64, \quad \#\{i: \texttt{rm}_i > 8\} = 13.
+\]
+
+\textbf{Comment on \texttt{rm}>8 tracts:}
+\begin{itemize}
+\item Most have high \texttt{medv} (often near the upper cap of 50), indicating premium housing stock.
+\item They frequently have low \texttt{lstat} (socioeconomic advantage).
+\item Many also have relatively low crime, with a notable exception: one tract has \texttt{rm}=8.780 but only \texttt{medv}=21.9, showing that high room count alone does not guarantee high value when other adverse factors are present.
+\end{itemize}
+
+\section*{Question 3 (Chapter 3, Exercise 1)}
+Table 3.4 in ISLR reports a multiple linear regression of \texttt{Sales} on \texttt{TV}, \texttt{radio}, and \texttt{newspaper}. Each p-value tests whether the corresponding predictor contributes linearly to explaining sales \emph{after adjusting for the other predictors}.
+
+Null hypotheses in words:
+\begin{itemize}
+\item For TV: given radio and newspaper budgets, TV has no linear association with sales.
+\item For radio: given TV and newspaper budgets, radio has no linear association with sales.
+\item For newspaper: given TV and radio budgets, newspaper has no linear association with sales.
+\end{itemize}
+
+From Table 3.4, TV and radio have extremely small p-values (highly significant), while newspaper has a very large p-value (not significant).
+
+\textbf{Practical conclusion (in business language):}
+\begin{itemize}
+\item There is strong evidence that increasing TV spend is associated with higher sales, holding other media fixed.
+\item There is strong evidence that increasing radio spend is associated with higher sales, holding other media fixed.
+\item There is no convincing evidence that newspaper spend has an additional linear effect on sales once TV and radio are already in the model.
+\end{itemize}
+
+This does \emph{not} mean newspaper advertising is universally useless; it means in this dataset and this linear specification, its incremental contribution beyond TV and radio is not statistically detectable.
+
+\section*{Question 4 (Chapter 3, Exercise 6)}
+Show that the least-squares line in simple linear regression passes through $(\bar{x},\bar{y})$.
+
+Model:
+\[
+y_i = \beta_0 + \beta_1 x_i + \epsilon_i,
+\]
+with least-squares estimates $\hat\beta_0,\hat\beta_1$ minimizing
+\[
+RSS = \sum_{i=1}^n (y_i - \beta_0 - \beta_1 x_i)^2.
+\]
+
+The normal equation from differentiating with respect to $\beta_0$ is
+\[
+\sum_{i=1}^n (y_i - \hat\beta_0 - \hat\beta_1 x_i) = 0.
+\]
+Rearrange:
+\[
+\sum_{i=1}^n y_i - n\hat\beta_0 - \hat\beta_1\sum_{i=1}^n x_i = 0.
+\]
+Divide by $n$:
+\[
+\bar{y} - \hat\beta_0 - \hat\beta_1\bar{x} = 0
+\quad\Rightarrow\quad
+\hat\beta_0 = \bar{y} - \hat\beta_1\bar{x}.
+\]
+
+Now evaluate the fitted line at $x=\bar{x}$:
+\[
+\hat{y}(\bar{x}) = \hat\beta_0 + \hat\beta_1\bar{x}
+= (\bar{y} - \hat\beta_1\bar{x}) + \hat\beta_1\bar{x}
+= \bar{y}.
+\]
+Hence the least-squares line always passes through $(\bar{x},\bar{y})$.
+
+\section*{Question 5 (Chapter 3, Exercise 11)}
+Given:
+\begin{verbatim}
+set.seed(1)
+x <- rnorm(100)
+y <- 2*x + rnorm(100)
+\end{verbatim}
+
+\subsection*{(a) Regress $y$ on $x$ without intercept}
+Model fitted: \texttt{lm(y \textasciitilde x + 0)}.
+
+Estimated coefficient table:
+\begin{center}
+\begin{tabular}{lrrrr}
+\toprule
+Term & Estimate & Std. Error & t value & p-value \\
+\midrule
+$x$ & 1.993876 & 0.106477 & 18.72593 & $2.64\times 10^{-34}$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{Comment:} The slope estimate is very close to the data-generating value 2. The t-statistic is extremely large in magnitude and the p-value is tiny, so we strongly reject $H_0:\beta=0$.
+
+\subsection*{(b) Regress $x$ on $y$ without intercept}
+Model fitted: \texttt{lm(x \textasciitilde y + 0)}.
+
+Estimated coefficient table:
+\begin{center}
+\begin{tabular}{lrrrr}
+\toprule
+Term & Estimate & Std. Error & t value & p-value \\
+\midrule
+$y$ & 0.3911145 & 0.0208863 & 18.72593 & $2.64\times 10^{-34}$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{Comment:} Coefficient scale differs because the response/predictor roles changed, but inferential strength against the null is identical (same t and p).
+
+\subsection*{(c) Relationship between (a) and (b)}
+The slope estimates are not equal and generally not exact reciprocals in noisy finite samples, but the t-statistics and p-values for testing zero slope are the same in both no-intercept regressions.
+
+\subsection*{(d) Algebraic form of the no-intercept t-statistic}
+For regression of $Y$ on $X$ without intercept,
+\[
+\hat\beta = \frac{\sum_{i=1}^n x_i y_i}{\sum_{i=1}^n x_i^2},
+\]
+\[
+SE(\hat\beta) = \sqrt{\frac{\sum_{i=1}^n (y_i - x_i\hat\beta)^2}{(n-1)\sum_{i=1}^n x_i^2}}.
+\]
+Hence
+\[
+t = \frac{\hat\beta}{SE(\hat\beta)}.
+\]
+
+Compute the residual sum of squares:
+\begin{align*}
+\sum_{i=1}^n (y_i - x_i\hat\beta)^2
+&= \sum y_i^2 -2\hat\beta\sum x_i y_i + \hat\beta^2\sum x_i^2 \\
+&= \sum y_i^2 - \frac{\left(\sum x_i y_i\right)^2}{\sum x_i^2}.
+\end{align*}
+Therefore,
+\[
+SE(\hat\beta)=\sqrt{\frac{\sum y_i^2 - \frac{(\sum x_i y_i)^2}{\sum x_i^2}}{(n-1)\sum x_i^2}}
+=\sqrt{\frac{(\sum x_i^2)(\sum y_i^2) - (\sum x_i y_i)^2}{(n-1)(\sum x_i^2)^2}}.
+\]
+Now divide:
+\begin{align*}
+t
+&= \frac{\frac{\sum x_i y_i}{\sum x_i^2}}
+{\sqrt{\frac{(\sum x_i^2)(\sum y_i^2) - (\sum x_i y_i)^2}{(n-1)(\sum x_i^2)^2}}} \\
+&= \frac{\sqrt{n-1}\sum x_i y_i}
+{\sqrt{(\sum x_i^2)(\sum y_i^2) - (\sum x_i y_i)^2}}.
+\end{align*}
+
+This is exactly the requested expression.
+
+\textbf{Numerical confirmation in R:}
+\[
+ t_{\hat\beta/SE(\hat\beta)} = 18.72593,
+\quad
+ t_{\text{closed form}} = 18.72593.
+\]
+
+\subsection*{(e) Why t is the same for $y$ on $x$ and $x$ on $y$ (no intercept)}
+From the derived formula,
+\[
+t = \frac{\sqrt{n-1}\sum x_i y_i}{\sqrt{(\sum x_i^2)(\sum y_i^2)- (\sum x_i y_i)^2}}.
+\]
+This expression is symmetric in $x$ and $y$ because multiplication is commutative and the denominator uses the same symmetric products. Swapping $x$ and $y$ leaves $t$ unchanged.
+
+Hence both no-intercept regressions have identical t-statistics (and therefore p-values) for testing zero slope.
+
+\subsection*{(f) With intercept, show t-statistics also match}
+Using:
+\begin{verbatim}
+summary(lm(y ~ x))$coef["x","t value"]
+summary(lm(x ~ y))$coef["y","t value"]
+\end{verbatim}
+we obtain:
+\[
+ t_{y\sim x} = 18.5556,
+ \quad
+ t_{x\sim y} = 18.5556.
+\]
+
+So with intercept included, the slope t-statistics are again identical. Conceptually, both tests are equivalent to testing zero correlation between $x$ and $y$.
+
+\section*{Closing Note}
+The results across Questions 2--5 are coherent with core principles in statistical learning: bias-variance trade-off, multicollinearity in real-world predictors, interpretation of conditional significance in multiple regression, geometry of least squares, and symmetry properties of t-tests under role reversal of two variables.
+
+\end{document}

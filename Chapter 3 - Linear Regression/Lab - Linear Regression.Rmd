@@ -1,0 +1,308 @@
+---
+title: "Lab - Linear Regression"
+author: "Wayne Rubangisa"
+date: "2026-08-16"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Libraries
+
+```{r}
+library(MASS)
+# library(ISLR2) We need to install this first in Packages.
+
+# Literally by running the command: 
+# install.packages("ISLR2")
+```
+
+```{r}
+library(ISLR2)
+```
+
+To access the Boston housing data-set from the MASS package, use the attach() function
+
+
+```{r}
+attach(Boston)
+# Please remember to detach it. 
+head(Boston)
+```
+```{r}
+names(Boston)
+```
+
+
+Now, lets start with a simple linear model with `lm()`
+
+
+```{r}
+lm.fit <- lm(medv ~ lstat)
+```
+
+Instead of attaching the Boston data-set first, we can also specify it directly in `lm()`.
+
+
+```{r}
+lm.fit <- lm(medv ~ lstat, data = Boston)
+```
+
+We can examine the fitted model, by simply typing its name.
+
+
+```{r}
+lm.fit
+```
+The names() function lists the names of all variables store in the lm.fit model.
+
+```{r}
+names(lm.fit)
+```
+
+
+```{r}
+coef(lm.fit)
+```
+
+
+```{r}
+confint(lm.fit)
+```
+
+We use the predict() function to obtain prediction interval or confidence intervals for a given value of `lstat`
+
+
+```{r}
+predict(lm.fit, data.frame(lstat = (c(5, 10, 15))), interval = "confidence")
+```
+
+```{r}
+predict(lm.fit, data.frame(lstat = (c(5, 10, 15))), interval = "prediction")
+```
+
+
+We can plot the variables `lstat` and `medv` using the plot() function, and overlay a regression line from our linear model using the abline() function.
+
+```{r}
+plot(lstat, medv)
+abline(lm.fit)
+```
+
+
+Experiment with different options for abline() by changing the line width and color.
+
+```{r}
+plot(lstat, medv)
+abline(lm.fit, lwd = 3)
+```
+
+
+
+
+```{r}
+plot(lstat, medv)
+abline(lm.fit, lwd = 3, col = "red")
+```
+
+
+```{r}
+plot(lstat, medv, col = "red")
+```
+
+
+```{r}
+plot(lstat, medv, pch = 20)
+```
+
+```{r}
+plot(lstat, medv, pch = "+")
+```
+
+
+```{r}
+plot(1:20, 1:20, pch = 1:20)
+```
+
+To create a grid of multiple subplots, we'll use the par() function.
+
+```{r}
+par(mfrow = c(2, 2))
+plot(lm.fit)
+```
+
+
+We can extract the residuals and studentized residuals from our linear model using `residuals()` and `rstudent()`, and plot them along with the predicted values.
+
+```{r}
+plot(predict(lm.fit), residuals(lm.fit))
+```
+
+```{r}
+plot(predict(lm.fit), rstudent(lm.fit))
+```
+
+
+```{r}
+plot(hatvalues(lm.fit))
+```
+
+```{r}
+which.max(hatvalues(lm.fit))
+```
+
+
+## 3.6.3 Multiple Linear Regression
+
+The `lm()` can be used for fitting multiple regression models as well. In the following example, we include age in addition to `lstata` as predictors of of our response variable `medv`.
+
+```{r}
+lm.fit <- lm(medv ~ lstat + age, data = Boston)
+summary(lm.fit)
+```
+
+In a formula, a dot `.` can be used as a shorthand to include all variables from the Boston data-set as predictors.
+
+```{r}
+lm.fit <- lm(medv ~ ., data = Boston)
+summary(lm.fit)
+```
+
+The Variance Inflation Factors (VIF) can be calculated using the `vif()` function from the `Companion to Applied Regression` or `car` package. Let's install it using `install.packages()` 
+
+
+```{r}
+library(car)
+vif(lm.fit)
+```
+
+
+To exclude specific variables from the list of predictors, we can use the - notation. In the following example, all variables except `age` are included in the linear fit model.
+
+```{r}
+lm.fit1 <- lm(medv ~ . - age, data = Boston)
+summary(lm.fit1)
+```
+We can also update an existing fit with the update() function and specifying a new formula.
+
+```{r}
+lm.fit1 <- update(lm.fit, ~. - age)
+```
+
+## 3.6.4 Interaction Terms
+
+
+```{r}
+summary(lm(medv ~ lstat * age, data = Boston))
+```
+
+## 3.6.5 Non-linear Transformations of the Predictors
+
+The `lm()` function can also be non-linear transformations such as quadratic or cubic terms. Terms in the formula raised to a power with `^` must be wrapped inside a call to `I()` to prevent interpretation and treated `as is`.
+
+```{r}
+lm.fit2 <- lm(medv ~ lstat + I(lstat^2))
+summary(lm.fit2)
+```
+
+To examine the analysis of variance (ANOVA) for one or more models, we use the anova().
+
+```{r}
+lm.fit <- lm(medv ~ lstat)
+anova(lm.fit, lm.fit2)
+```
+
+
+```{r}
+par(mfrow = c(2, 2))
+plot(lm.fit2)
+```
+
+
+```{r}
+lm.fit5 <- lm(medv ~ poly(lstat, 5))
+summary(lm.fit5)
+```
+
+## 3.6.6 Qualitative Predictors
+
+```{r}
+head(Carseats)
+```
+
+
+```{r}
+names(Carseats)
+```
+
+```{r}
+lm.fit <- lm(Sales ~ . + Income:Advertising + Price:Age, data = Carseats)
+summary(lm.fit)
+```
+
+To examine the coding for the qualitative variables, we can use the contrasts() function.
+
+```{r}
+contrasts(Carseats$ShelveLoc)
+```
+
+
+## 3.6.7 Writing Functions
+
+We can define our own functions to wrap a set of R commands in a single call.
+
+```{r}
+LoadLibraries <- function() {
+    library(ISLR)
+    library(MASS)
+}
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
