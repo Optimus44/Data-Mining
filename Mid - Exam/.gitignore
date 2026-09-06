@@ -1,0 +1,31 @@
+# Raw survey data
+stata/
+spss/
+data/raw/*.dta
+data/raw/*.sav
+*.zip
+
+# Python environments and caches
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.ipynb_checkpoints/
+
+# Generated runtime outputs at repository root
+prepared_household_data.csv
+phase_*.csv
+final_model_comparison.csv
+figures/*.png
+
+# LaTeX build files
+*.aux
+*.fdb_latexmk
+*.fls
+*.log
+*.out
+*.synctex.gz
+*.toc
+
+# Operating-system files
+.DS_Store
