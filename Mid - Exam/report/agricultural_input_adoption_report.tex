@@ -1,0 +1,283 @@
+\documentclass[12pt,a4paper]{article}
+
+\usepackage[margin=1in]{geometry}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{longtable}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{amsmath}
+\usepackage{enumitem}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{setspace}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{microtype}
+
+\onehalfspacing
+\hypersetup{colorlinks=true, linkcolor=black, citecolor=black, urlcolor=blue}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{6pt}
+
+\newcommand{\repositoryurl}{https://github.com/Optimus44/Data-Mining/tree/main/Mid\%20-\%20Exam}
+
+\title{\textbf{Predicting Agricultural Input Use and Profiling\ Agricultural Households Using Data Mining}}
+\author{Wayne Rubangisa\\[4pt]
+Master of Science in Big Data Analytics\\
+Course: MSDA 9213 Data Mining}
+\date{Academic Year 2025--2026\\\today}
+
+\begin{document}
+
+\begin{titlepage}
+    \centering
+    \vspace*{1.5cm}
+    {\large \textbf{FACULTY OF INFORMATION TECHNOLOGY}}\\[0.3cm]
+    {\large Department of Big Data Analytics}\\[2cm]
+    {\Large \textbf{MID-SEMESTER DATA MINING PROJECT}}\\[1.5cm]
+    {\huge \bfseries Predicting Agricultural Input Use\\[0.2cm]
+    and Profiling Agricultural Households}\\[1.5cm]
+    {\Large A supervised and unsupervised learning study using agricultural household survey microdata}\\[2cm]
+    \begin{tabular}{>{\bfseries}rl}
+        Student: & Wayne Rubangisa \\
+        Student ID: & 101220 \\
+        Lecturer: & Dr. Pacifique Nizeyimana \\
+        Course: & MSDA 9213 Data Mining \\
+        Code repository: & \href{\repositoryurl}{GitHub repository} \\
+        Submission date: & 5 September 2026
+    \end{tabular}
+    \vfill
+    {\large Kigali, Rwanda}
+\end{titlepage}
+
+\pagenumbering{roman}
+\tableofcontents
+\newpage
+\pagenumbering{arabic}
+
+\begin{abstract}
+This study applies data mining to agricultural household survey microdata to predict whether households use agricultural inputs and to explore household-level agricultural profiles. The raw Stata data were organised into thematic modules and merged using the household identifier \texttt{idquest}. After removing invalid identifiers, aggregating repeated livestock records, constructing a binary target, and excluding target-leaking input fields, the final dataset contained 16,057 households and 60 candidate predictors. Logistic Regression, Random Forest, Gradient Boosting, and an Artificial Neural Network were evaluated using a stratified 75/25 train-test split and leakage-safe preprocessing. Gradient Boosting achieved the strongest baseline F1-score of 0.8629, while hyperparameter tuning increased F1 to 0.8645 and ROC-AUC to 0.8583. The ANN achieved an F1-score of 0.8532 and therefore did not outperform the tree-based models. K-means clustering selected two clusters by silhouette score, but the solution was highly imbalanced, with 15,924 households in one cluster and 133 in the other. The results demonstrate that agricultural context variables contain useful predictive information, while also showing the importance of careful leakage control, missing-data handling, and cautious interpretation of unsupervised segments.
+\end{abstract}
+
+\textbf{Keywords:} agricultural households; classification; clustering; Gradient Boosting; artificial neural network; input adoption; data mining
+
+\newpage
+\section{Introduction}
+
+Agricultural households make production decisions within a complex system involving land access, crops, farming practices, livestock, household context, and access to support services. Data mining provides a way to analyse these relationships at scale and to compare predictive algorithms on real survey data. This project uses a multi-module agricultural household survey to address two related tasks: predicting agricultural input use and identifying groups of households with similar agricultural characteristics.
+
+The study has four objectives:
+\begin{enumerate}[leftmargin=2em]
+    \item construct a validated household-level analytic dataset from related survey modules;
+    \item predict whether a household reports using agricultural inputs;
+    \item compare classical machine-learning algorithms with a deep-learning model;
+    \item identify and interpret household profiles using unsupervised clustering.
+\end{enumerate}
+
+The project also evaluates whether hyperparameter tuning improves the best baseline classifier. The analysis is designed as a predictive study rather than a causal investigation: the models estimate patterns of association and should not be interpreted as proving that a specific household characteristic causes input adoption.
+
+The complete source code, notebooks, generated result tables, figures, and reproducibility instructions are available in the project repository: \href{\repositoryurl}{GitHub repository}.
+
+\section{Methods}
+
+\subsection{Dataset and Research Context}
+
+The dataset consists of Stata microdata from an agricultural household survey. The raw files are organised into modules rather than one flat table. The principal modules used in the baseline dataset were:
+
+\begin{itemize}[leftmargin=1.5em]
+    \item \texttt{S0\_General Information.dta}: household and geographic context;
+    \item \texttt{S2\_Land tenure and crops planted.dta}: land and crop characteristics;
+    \item \texttt{S5\_Agricultural Inputs.dta}: target construction;
+    \item \texttt{S6\_Agricultural Practices.dta}: farming and cultivation practices;
+    \item \texttt{S9\_Number of animals.dta}: livestock characteristics.
+\end{itemize}
+
+All selected modules contain the household identifier \texttt{idquest}. Extension services, funding, household-member, tools, production-use, and animal-services modules were retained as optional sources for future sensitivity analyses. Specialised milk and honey modules were excluded because they describe selective subpopulations and outcomes outside the general input-adoption objective.
+
+\subsection{Target and Features}
+
+The classification target was derived from \texttt{s5q1\_1} in the agricultural-input module:
+\[
+Y = \begin{cases}
+1, & \text{if the household reported Yes}\\
+0, & \text{if the household reported No.}
+\end{cases}
+\]
+
+The target contained 11,080 users (69 percent) and 4,977 non-users (31 percent). Predictors came from household context, land and crops, agricultural practices, and aggregated livestock variables. The identifier \texttt{idquest} was excluded from modeling. All direct \texttt{S5} input-response fields were excluded from the predictor matrix because they could reveal the target directly.
+
+\subsection{Mathematical Foundations}
+
+For a household represented by a feature vector $\mathbf{x}$, the classification models estimate the probability $\hat{p}=P(Y=1\mid\mathbf{x})$. Logistic Regression uses the sigmoid transformation
+\[
+\hat{p}=\sigma(\mathbf{w}^{\mathsf{T}}\mathbf{x}+b)=\frac{1}{1+\exp[-(\mathbf{w}^{\mathsf{T}}\mathbf{x}+b)]},
+\]
+where $\mathbf{w}$ contains feature coefficients and $b$ is the intercept. Its parameters are commonly estimated by minimising binary cross-entropy:
+\[
+\mathcal{L}=-\frac{1}{n}\sum_{i=1}^{n}\left[y_i\log(\hat{p}_i)+(1-y_i)\log(1-\hat{p}_i)\right].
+\]
+
+The tree-based models represent nonlinear relationships. Random Forest averages the predictions of $B$ independently trained trees, while Gradient Boosting builds an additive model sequentially:
+\[
+F_M(\mathbf{x})=F_0(\mathbf{x})+\sum_{m=1}^{M}\nu h_m(\mathbf{x}),
+\]
+where $h_m$ is the $m$th tree and $\nu$ is the learning rate. The tuning procedure selected the number of trees, learning rate, and tree depth using cross-validated F1-score.
+
+For the neural network, each layer applies an affine transformation followed by an activation function. In the hidden layers, the ReLU activation is
+\[
+\operatorname{ReLU}(z)=\max(0,z),
+\]
+and the final sigmoid unit produces the binary probability. Parameters are updated by gradient-based optimisation, with L2 regularisation discouraging excessively large weights.
+
+The reported classification metrics are based on true positives ($TP$), true negatives ($TN$), false positives ($FP$), and false negatives ($FN$):
+\[
+\operatorname{Precision}=\frac{TP}{TP+FP},\qquad
+\operatorname{Recall}=\frac{TP}{TP+FN},
+\]
+\[
+F1=2\frac{\operatorname{Precision}\cdot\operatorname{Recall}}
+{\operatorname{Precision}+\operatorname{Recall}},\qquad
+\operatorname{Accuracy}=\frac{TP+TN}{TP+TN+FP+FN}.
+\]
+F1 was selected as the primary comparison metric because it combines precision and recall and is less misleading than accuracy when class sizes differ.
+
+Figure~\ref{fig:target-distribution} shows the target-class distribution used for the supervised task.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.62\textwidth]{../figures/target_distribution.png}
+\caption{Distribution of agricultural-input use in the modelling population.}
+\label{fig:target-distribution}
+\end{figure}
+
+\subsection{Data Cleaning and Integration}
+
+The household-level preparation process used the target module to define the modelling population of 16,057 households. Missing and duplicate identifiers were removed from the household foundation. Repeated livestock records were aggregated by \texttt{idquest}; numeric livestock quantities were summed, while categorical descriptors used the modal non-missing value. The core modules were merged with one-to-one validation, and the final table was checked for unique, non-missing household identifiers.
+
+The prepared table contained 62 columns: \texttt{idquest}, the target, and 60 candidate predictors. Sixteen feature columns contained missing values. Missing values were not globally filled before splitting. Instead, numeric median imputation, categorical most-frequent imputation, one-hot encoding, and numerical standardisation were fitted inside each modeling pipeline using training data only.
+
+\subsection{Classification Design}
+
+The data were divided into training and testing sets using a stratified 75/25 split with \texttt{random\_state=42}. The test set contained 4,015 households. The following models were compared:
+
+\begin{enumerate}[leftmargin=2em]
+    \item Logistic Regression;
+    \item Random Forest;
+    \item Gradient Boosting;
+    \item Artificial Neural Network implemented as a multi-layer perceptron.
+\end{enumerate}
+
+Performance was evaluated using accuracy, precision, recall, F1-score, and ROC-AUC. F1-score was treated as the principal comparison metric because the target classes were moderately imbalanced and both precision and recall were important.
+
+The ANN used hidden layers of 256, 128, and 64 units, ReLU activation, Adam optimisation, L2 regularisation, batch size 32, and early stopping. The performance-improvement method was hyperparameter tuning of Gradient Boosting using three-fold cross-validation and F1-score as the selection criterion.
+
+\subsection{Clustering Design}
+
+K-means clustering was applied to the household predictors without using the classification target as an input. Numeric and categorical features were imputed, encoded, and standardised. Candidate solutions from $k=2$ through $k=8$ were compared using silhouette score, Davies--Bouldin index, and inertia. Cluster assignments were then profiled using household counts and descriptive input-use rates.
+
+For $k$-means, the assignment seeks to minimise the within-cluster sum of squared distances:
+\[
+\min_{C_1,\ldots,C_k}\sum_{j=1}^{k}\sum_{\mathbf{x}_i\in C_j}
+\left\lVert\mathbf{x}_i-\boldsymbol{\mu}_j\right\rVert_2^2,
+\]
+where $\boldsymbol{\mu}_j$ is the centroid of cluster $C_j$. To compare candidate values of $k$, the silhouette coefficient for observation $i$ is
+\[
+s(i)=\frac{b(i)-a(i)}{\max\{a(i),b(i)\}},
+\]
+where $a(i)$ is the average distance to observations in the same cluster and $b(i)$ is the lowest average distance to another cluster. Larger silhouette values indicate better separation and cohesion.
+
+\section{Results and Interpretation}
+
+\subsection{Classification Performance}
+
+Table~\ref{tab:model-comparison} presents the final supervised comparison. All models used the same test split and leakage-safe preprocessing design.
+
+\begin{table}[H]
+\centering
+\caption{Supervised model performance on the held-out test set}
+\label{tab:model-comparison}
+\begin{tabular}{lrrrrr}
+\toprule
+\textbf{Model} & \textbf{Accuracy} & \textbf{Precision} & \textbf{Recall} & \textbf{F1} & \textbf{ROC-AUC} \\
+\midrule
+Tuned Gradient Boosting & 0.8022 & 0.8202 & 0.9138 & \textbf{0.8645} & \textbf{0.8583} \\
+Gradient Boosting & 0.7980 & 0.8117 & 0.9210 & 0.8629 & 0.8546 \\
+Random Forest & 0.7945 & 0.8050 & 0.9267 & 0.8616 & 0.8536 \\
+Logistic Regression & 0.7968 & 0.8227 & 0.8993 & 0.8593 & 0.8448 \\
+Artificial Neural Network & 0.7885 & 0.8191 & 0.8903 & 0.8532 & 0.8425 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The tuned Gradient Boosting model was the strongest model by both F1-score and ROC-AUC. The selected parameters were 100 estimators, learning rate 0.1, and maximum depth 5. Relative to the Phase 3 Gradient Boosting result of F1 0.8629 and ROC-AUC 0.8546, tuning increased F1 to 0.8645 and ROC-AUC to 0.8583. This corresponds to an absolute F1 increase of approximately 0.0016 and an ROC-AUC increase of approximately 0.0037. The improvement is positive but modest, so it should be described as a small performance gain rather than a major transformation.
+
+The ANN achieved lower overall performance than the tree-based models. This does not invalidate the model; it demonstrates that the required deep-learning comparison was conducted and that greater architectural complexity did not automatically improve performance for this feature representation and sample.
+
+Figure~\ref{fig:model-comparison} summarises the F1 and ROC-AUC values across the supervised models.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.88\textwidth]{../figures/model_comparison.png}
+\caption{Comparison of supervised model F1-score and ROC-AUC.}
+\label{fig:model-comparison}
+\end{figure}
+
+\subsection{Clustering Performance}
+
+The best silhouette score was 0.7796 at $k=2$. The three-cluster solution had a lower silhouette score of 0.7389 but a lower Davies--Bouldin index of 1.2319. The selected two-cluster solution contained 15,924 households in Cluster 0 and 133 households in Cluster 1. Their descriptive input-use rates were 69.1 percent and 53.4 percent, respectively.
+
+The high silhouette score indicates separation under the selected representation, but the extreme cluster-size imbalance limits the usefulness of the result as a balanced household segmentation. It is therefore best treated as an exploratory structural finding rather than a definitive set of agricultural market segments.
+
+Figure~\ref{fig:cluster-sizes} makes the cluster imbalance explicit.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.62\textwidth]{../figures/cluster_sizes.png}
+\caption{Household counts in the selected two-cluster solution.}
+\label{fig:cluster-sizes}
+\end{figure}
+
+\section{Discussion}
+
+The classification results indicate that household context, land and crop characteristics, agricultural practices, and livestock information contain predictive information about agricultural input use. The close performance of Gradient Boosting, Random Forest, and Logistic Regression suggests that the signal is not dependent on one highly specialised model. Tree-based models performed slightly better, which is consistent with their ability to capture nonlinear relationships and interactions among mixed agricultural features.
+
+The tuned Gradient Boosting model is the recommended predictive model for this project. Its gain over the untuned baseline is small but measurable, and its F1-score balances precision and recall more effectively than the alternatives. The ANN result is useful for comparison but should not be selected merely because it is a deep-learning model.
+
+The clustering analysis requires more caution. The selected solution isolates a small group of households, but the current result does not yet provide enough evidence to assign substantive labels such as ``commercial farmers'' or ``subsistence farmers.'' Such labels would require inspecting the actual feature profiles and validating the interpretation with domain knowledge.
+
+The analysis also has limitations. Survey skip patterns create substantial missingness in some variables. The target measures reported input use and does not establish causality. The use of one fixed train-test split means that uncertainty across alternative splits is not fully quantified. Finally, optional modules such as extension services were not included in the baseline and may change performance in a controlled sensitivity analysis.
+
+\section{Recommendations}
+
+Based on the results, the following recommendations are made:
+
+\begin{enumerate}[leftmargin=2em]
+    \item Use the tuned Gradient Boosting model as the primary predictive model, while reporting the full comparison rather than only the winning score.
+    \item Preserve the leakage-safe preprocessing design and fit all imputation, encoding, and scaling operations on training data only.
+    \item Treat the two-cluster result as exploratory until feature-level profiles, cluster stability, and alternative representations have been investigated.
+    \item Evaluate the optional extension-services module as a controlled sensitivity analysis to determine whether advisory access adds predictive value.
+    \item Report F1-score and ROC-AUC alongside accuracy because the target classes are not perfectly balanced.
+    \item For future work, repeat evaluation across multiple stratified folds and consider calibrated probabilities, explainable feature importance, and alternative clustering methods.
+\end{enumerate}
+
+\section{Conclusion}
+
+This project developed a reproducible data-mining workflow for a real agricultural household survey. The workflow moved from multi-module inventory and cleaning to household-level integration, leakage-safe preprocessing, supervised model comparison, performance improvement, and clustering. Tuned Gradient Boosting was the best classifier, while the ANN met the deep-learning requirement without outperforming the classical models. K-means identified a highly separated but highly imbalanced two-cluster structure. Together, these results demonstrate both the value and the limitations of applying machine learning to complex agricultural survey data.
+
+\addcontentsline{toc}{section}{References}
+\begin{thebibliography}{9}
+\bibitem{james2021}
+G. James, D. Witten, T. Hastie, and R. Tibshirani, \textit{An Introduction to Statistical Learning: With Applications in R}, 2nd ed. New York: Springer, 2021.
+
+\bibitem{pedregosa2011}
+F. Pedregosa et al., ``Scikit-learn: Machine learning in Python,'' \textit{Journal of Machine Learning Research}, vol. 12, pp. 2825--2830, 2011.
+
+\bibitem{macqueen1967}
+J. MacQueen, ``Some methods for classification and analysis of multivariate observations,'' in \textit{Proceedings of the Fifth Berkeley Symposium on Mathematical Statistics and Probability}, vol. 1, pp. 281--297, 1967.
+
+\bibitem{rumelhart1986}
+D. E. Rumelhart, G. E. Hinton, and R. J. Williams, ``Learning representations by back-propagating errors,'' \textit{Nature}, vol. 323, pp. 533--536, 1986.
+\end{thebibliography}
+
+\end{document}
