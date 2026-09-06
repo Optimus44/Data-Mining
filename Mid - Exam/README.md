@@ -84,7 +84,7 @@ For the prepared submission outputs, open:
 
 ## Report Details
 
-Before submission, replace the `Student Name` and `Student ID` placeholders in `report/agricultural_input_adoption_report.tex`, then compile the report with a LaTeX installation:
+Compile the report with a LaTeX installation:
 
 ```bash
 cd report
