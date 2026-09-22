@@ -1,0 +1,421 @@
+---
+output:
+  pdf_document:
+    keep_tex: true
+    number_sections: true
+header-includes:
+  - \usepackage{amsmath}
+  - \input{../../_common/preamble.tex}
+fontsize: 11pt
+geometry: margin=1in
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE, fig.align = "center")
+```
+
+```{=latex}
+\makecoverpage{Chapter 3 --- Linear Regression \\ Lab}
+```
+
+# Introduction
+
+This lab walks through fitting and interpreting linear regression models in R,
+following the workflow used in Chapter 3 of *An Introduction to Statistical
+Learning*. We'll cover:
+
+- Simple linear regression
+- Confidence and prediction intervals
+- Diagnostic plots for checking model assumptions
+- Multiple linear regression
+- Interaction terms
+- Non-linear transformations of predictors
+- Qualitative (categorical) predictors
+- Writing a small reusable function
+
+We'll use two classic datasets that ship with the `ISLR2` package: `Boston`
+(housing values in the suburbs of Boston) and `Carseats` (simulated child car
+seat sales data).
+
+## Required packages
+
+```{r libraries}
+# install.packages(c("MASS", "ISLR2", "car"))  # uncomment if needed
+library(MASS)     # for some classic datasets and stats utilities
+library(ISLR2)    # Boston and Carseats datasets live here (2nd edition)
+library(car)      # for vif() -- variance inflation factors
+```
+
+> **Note:** In the 2nd edition of ISLR, the `Boston` dataset moved from the
+> `MASS` package into `ISLR2`. Loading both packages avoids ambiguity issues;
+> if you have both loaded, `ISLR2::Boston` is the one used below.
+
+# Simple Linear Regression
+
+We start by exploring the relationship between `medv` (median home value, in
+$1000s) and `lstat` (percentage of the population with "lower status", e.g.
+lower income/education) in the `Boston` data set.
+
+```{r explore-data}
+Boston <- ISLR2::Boston
+str(Boston)
+names(Boston)
+```
+
+## Fitting the model
+
+Before fitting anything, it's worth being explicit about what `lm()` is
+actually estimating. A simple linear regression assumes the true
+relationship has the form
+
+$$
+\text{medv} = \beta_0 + \beta_1 \cdot \text{lstat} + \epsilon
+$$
+
+where $\beta_0$ and $\beta_1$ are unknown population parameters and
+$\epsilon$ is irreducible error. `lm()` doesn't know $\beta_0$ and
+$\beta_1$ — it estimates them, $\hat\beta_0$ and $\hat\beta_1$, by finding
+the line that minimizes the residual sum of squares over the $n$ observed
+pairs $(x_i, y_i)$:
+
+$$
+\text{RSS} = \sum_{i=1}^{n} \left(y_i - \hat\beta_0 - \hat\beta_1 x_i\right)^2
+$$
+
+which has the closed-form (least-squares) solution
+
+$$
+\hat\beta_1 = \frac{\sum_{i=1}^n (x_i - \bar{x})(y_i - \bar{y})}{\sum_{i=1}^n (x_i - \bar{x})^2}, \qquad
+\hat\beta_0 = \bar{y} - \hat\beta_1 \bar{x}
+$$
+
+```{r simple-lm}
+lm.fit <- lm(medv ~ lstat, data = Boston)
+lm.fit
+summary(lm.fit)
+```
+
+The output above gives us $\hat\beta_0$ and $\hat\beta_1$ (under
+`Estimate`), their standard errors, t-statistics, and p-values, along with
+two summary measures of overall fit:
+
+$$
+R^2 = 1 - \frac{\text{RSS}}{\text{TSS}}, \qquad
+\text{RSE} = \sqrt{\frac{\text{RSS}}{n-2}}
+$$
+
+$R^2$ is the proportion of variance in `medv` explained by `lstat` (unitless,
+between 0 and 1); the residual standard error (RSE) is roughly the average
+distance, in `medv`'s own units (\$1000s), that an observation falls from the
+fitted line.
+
+We can pull out specific pieces of the fitted model:
+
+```{r extract-info}
+names(lm.fit)
+coef(lm.fit)
+confint(lm.fit)
+```
+
+## Confidence and prediction intervals
+
+Given a value of `lstat`, we can produce a confidence interval for the mean
+response and a prediction interval for an individual observation. Both are
+centered on the same point prediction $\hat{y}_0 = \hat\beta_0 + \hat\beta_1 x_0$,
+but differ in what uncertainty they account for:
+
+$$
+\text{CI: } \hat{y}_0 \pm t_{\alpha/2, \, n-2} \cdot \text{SE}(\hat{y}_0), \qquad
+\text{PI: } \hat{y}_0 \pm t_{\alpha/2, \, n-2} \cdot \sqrt{\text{SE}(\hat{y}_0)^2 + \hat\sigma^2}
+$$
+
+The confidence interval only accounts for uncertainty in *estimating* the
+regression line itself (i.e. in $\hat\beta_0, \hat\beta_1$). The prediction
+interval adds the irreducible error variance $\hat\sigma^2$ on top of that,
+since an individual observation also deviates randomly from the true line —
+which is exactly why, as the formulas above make clear, the PI is always
+wider than the CI at the same $x_0$.
+
+```{r ci-pi}
+new_lstat <- data.frame(lstat = c(5, 10, 15))
+
+predict(lm.fit, new_lstat, interval = "confidence")
+predict(lm.fit, new_lstat, interval = "prediction")
+```
+
+Note that the prediction interval is wider than the confidence interval at
+each value of `lstat`, since it accounts for the irreducible error around the
+regression line, not just the uncertainty in estimating the line itself.
+
+## Visualizing the fit
+
+```{r plot-fit}
+plot(Boston$lstat, Boston$medv,
+     xlab = "Lower status of the population (%)",
+     ylab = "Median home value ($1000s)",
+     main = "medv vs. lstat", pch = 20, col = "steelblue")
+abline(lm.fit, lwd = 2, col = "firebrick")
+```
+
+Some extra styling options for `plot()` and `abline()`:
+
+```{r plot-styles}
+par(mfrow = c(2, 2))
+plot(Boston$lstat, Boston$medv, col = "steelblue", pch = 20)
+plot(Boston$lstat, Boston$medv, pch = "+")
+plot(1:20, 1:20, pch = 1:20, main = "Point shapes 1-20")
+plot(Boston$lstat, Boston$medv, pch = 20, cex = 0.6)
+```
+
+## Diagnostic plots
+
+Base R's `plot()` applied directly to a fitted `lm` object produces four
+standard diagnostic plots: residuals vs. fitted, a Q-Q plot, scale-location,
+and residuals vs. leverage.
+
+```{r diagnostics}
+par(mfrow = c(2, 2))
+plot(lm.fit)
+```
+
+We can also compute residuals and studentized residuals manually, and inspect
+leverage statistics:
+
+```{r residuals-leverage}
+par(mfrow = c(1, 1))
+plot(predict(lm.fit), residuals(lm.fit),
+     xlab = "Fitted values", ylab = "Residuals")
+abline(h = 0, lty = 2)
+
+plot(predict(lm.fit), rstudent(lm.fit),
+     xlab = "Fitted values", ylab = "Studentized residuals")
+abline(h = 0, lty = 2)
+
+# Leverage statistics -- which observations have unusually high leverage?
+plot(hatvalues(lm.fit),
+     ylab = "Leverage", main = "Leverage by observation")
+which.max(hatvalues(lm.fit))
+```
+
+# Multiple Linear Regression
+
+A single predictor rarely tells the whole story — `medv` plausibly depends
+on more than just `lstat`. Multiple linear regression extends the same
+least-squares idea to $p$ predictors:
+
+$$
+\text{medv} = \beta_0 + \beta_1 X_1 + \beta_2 X_2 + \cdots + \beta_p X_p + \epsilon
+$$
+
+Each $\hat\beta_j$ is now interpreted as the effect of a one-unit increase
+in $X_j$ *holding all other predictors fixed* — a different reading than
+in simple regression, where $\hat\beta_1$ captured $X_1$'s effect with
+nothing else in the model to hold constant.
+
+Now we extend the model to include more than one predictor.
+
+```{r mlr-two}
+lm.fit2 <- lm(medv ~ lstat + age, data = Boston)
+summary(lm.fit2)
+```
+
+## Using all predictors
+
+Rather than typing every variable name, we can regress `medv` on all other
+variables in the data frame using `.`:
+
+```{r mlr-all}
+lm.fit.all <- lm(medv ~ ., data = Boston)
+summary(lm.fit.all)
+```
+
+We can access individual pieces of the summary object, such as $R^2$ and the
+residual standard error:
+
+```{r summary-pieces}
+summary(lm.fit.all)$r.squared
+summary(lm.fit.all)$sigma
+```
+
+## Checking for multicollinearity
+
+Variance inflation factors (VIFs) help flag predictors that are highly
+correlated with other predictors, which can inflate coefficient standard
+errors. For predictor $X_j$, the VIF is defined using $R^2_{X_j}$ — the
+$R^2$ from regressing $X_j$ on *all the other predictors*:
+
+$$
+\text{VIF}(\hat\beta_j) = \frac{1}{1 - R^2_{X_j}}
+$$
+
+If $X_j$ is well explained by the other predictors ($R^2_{X_j}$ close to 1),
+the denominator shrinks toward 0 and the VIF blows up — a sign that $X_j$'s
+own coefficient estimate is unstable because the data can't cleanly separate
+its effect from the other predictors it's correlated with. A VIF of 1 means
+no collinearity at all; VIFs above roughly 5–10 are typically treated as
+cause for concern.
+
+```{r vif}
+vif(lm.fit.all)
+```
+
+## Fitting with one predictor excluded
+
+Suppose we want to fit the model using all predictors except one (say, `age`,
+which had a very high p-value above). We can do this two ways:
+
+```{r drop-predictor}
+lm.fit.no.age <- lm(medv ~ . - age, data = Boston)
+summary(lm.fit.no.age)
+
+# Equivalently, using update() on an existing fit:
+lm.fit.updated <- update(lm.fit.all, ~ . - age)
+summary(lm.fit.updated)
+```
+
+# Interaction Terms
+
+Additive multiple regression assumes each predictor's effect is independent
+of the others — the effect of `lstat` on `medv` is the same whichever value
+`age` happens to take. An interaction term relaxes that assumption:
+
+$$
+\text{medv} = \beta_0 + \beta_1 \cdot \text{lstat} + \beta_2 \cdot \text{age} + \beta_3 \cdot (\text{lstat} \times \text{age}) + \epsilon
+$$
+
+Rearranging the `lstat` terms makes the point concrete — `lstat`'s effective
+slope now depends on the value of `age`:
+
+$$
+\text{medv} = \beta_0 + (\beta_1 + \beta_3 \cdot \text{age}) \cdot \text{lstat} + \beta_2 \cdot \text{age} + \epsilon
+$$
+
+`lstat:age` includes only the interaction term ($\beta_3$), while `lstat*age`
+is shorthand for `lstat + age + lstat:age` -- i.e., it includes both main
+effects and the interaction, matching the full formula above.
+
+```{r interactions}
+summary(lm(medv ~ lstat * age, data = Boston))
+```
+
+# Non-linear Transformations of Predictors
+
+The `lm()` function can accommodate non-linear transformations of predictors
+directly in the formula, using `I()` to protect arithmetic operators like `^`
+from being interpreted as formula syntax.
+
+$$
+\text{medv} = \beta_0 + \beta_1 \cdot \text{lstat} + \beta_2 \cdot \text{lstat}^2 + \epsilon
+$$
+
+This is still a *linear* model in the statistical sense — linear in the
+parameters $\beta_0, \beta_1, \beta_2$ — even though the fitted curve itself
+is not a straight line. That's exactly why `lm()` can fit it directly.
+
+```{r poly-term}
+lm.fit.sq <- lm(medv ~ lstat + I(lstat^2), data = Boston)
+summary(lm.fit.sq)
+```
+
+We can use `anova()` to formally compare the linear-only model to the model
+that also includes the quadratic term:
+
+```{r anova-compare}
+lm.fit.linear <- lm(medv ~ lstat, data = Boston)
+anova(lm.fit.linear, lm.fit.sq)
+```
+
+```{r poly-diagnostics}
+par(mfrow = c(2, 2))
+plot(lm.fit.sq)
+```
+
+For a higher-order polynomial fit, the `poly()` function is more convenient
+than writing out each `I(lstat^k)` term by hand:
+
+```{r poly-function}
+lm.fit.poly5 <- lm(medv ~ poly(lstat, 5), data = Boston)
+summary(lm.fit.poly5)
+```
+
+We can also try a log transformation of a predictor:
+
+```{r log-term}
+summary(lm(medv ~ log(rm), data = Boston))
+```
+
+# Qualitative Predictors
+
+We switch to the `Carseats` data set, which includes a mix of quantitative
+and qualitative (categorical) predictors, to demonstrate how `lm()` handles
+factor variables.
+
+```{r carseats-explore}
+Carseats <- ISLR2::Carseats
+str(Carseats)
+```
+
+## Fitting a model with interactions and a factor variable
+
+```{r carseats-fit}
+lm.fit.carseats <- lm(Sales ~ . + Income:Advertising + Price:Age,
+                       data = Carseats)
+summary(lm.fit.carseats)
+```
+
+R automatically creates dummy variables for qualitative predictors such as
+`ShelveLoc` (a three-level factor: `Bad`, `Medium`, `Good`). With $k=3$
+levels, R creates $k-1=2$ dummy variables and folds their coefficients into
+the same linear model:
+
+$$
+\text{Sales} = \beta_0 + \beta_1 \cdot X_{\text{Good}} + \beta_2 \cdot X_{\text{Medium}} + \cdots + \epsilon,
+\qquad X_{\text{Good}} =
+\begin{cases} 1 & \text{if ShelveLoc = Good} \\ 0 & \text{otherwise} \end{cases}
+$$
+
+(and similarly for $X_{\text{Medium}}$). The omitted level, `Bad`, becomes
+the baseline: when both dummies are 0, the model's intercept $\beta_0$
+represents a `Bad` shelf location, so $\beta_1$ and $\beta_2$ are read as
+the shift in expected `Sales` *relative to* `Bad`, not as standalone effects.
+We can check how these dummy variables were coded using `contrasts()`:
+
+```{r contrasts}
+contrasts(Carseats$ShelveLoc)
+```
+
+The coefficients on `ShelveLocGood` and `ShelveLocMedium` represent the
+expected change in sales relative to the baseline level (`Bad` shelf
+location), holding all other predictors fixed.
+
+# Writing a Small Function
+
+Finally, a short example of writing our own function -- here, one that loads
+several packages at once, which can be handy at the start of a script or
+report like this one.
+
+```{r custom-function}
+LoadLibraries <- function() {
+  library(ISLR2)
+  library(MASS)
+  library(car)
+  print("The libraries have been loaded.")
+}
+
+LoadLibraries()
+```
+
+# Summary
+
+In this lab we:
+
+1. Fit and interpreted simple and multiple linear regression models.
+2. Computed confidence and prediction intervals for predicted responses.
+3. Produced and interpreted standard regression diagnostic plots.
+4. Checked for multicollinearity using variance inflation factors.
+5. Added interaction terms and non-linear (polynomial, log) transformations.
+6. Incorporated qualitative predictors and inspected their dummy-variable
+   coding.
+
+These tools form the foundation for the more flexible modeling approaches
+covered in later chapters.
