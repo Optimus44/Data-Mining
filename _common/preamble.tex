@@ -1,0 +1,32 @@
+% Shared LaTeX preamble for all Data Mining / ISLR chapter documents.
+% Provides \makecoverpage{<assignment title>} — a standalone title page
+% with fixed student identity, so every chapter/lab looks uniform.
+
+\usepackage{graphicx}
+
+\newcommand{\makecoverpage}[1]{%
+\begin{titlepage}
+\centering
+\vspace*{2cm}
+
+{\Large \textbf{Adventist University of Central Africa}}\\[0.4cm]
+{\large Master's in Big Data Analytics}\\[2cm]
+
+{\Huge \textbf{#1}}\\[0.5cm]
+{\large \textit{Introduction to Statistical Learning with Applications in R}}\\[3cm]
+
+\begin{tabular}{rl}
+\textbf{Programme:} & MSc Big Data Analytics \\
+\textbf{Course Title:} & Data Mining \\
+\textbf{Course Code:} & MSDA 9124 \\
+\textbf{Lecturer:} & Dr. Pacifique Nizeyimana \\
+\textbf{Student Name:} & Wayne Rubangisa \\
+\textbf{Student ID:} & 101220 \\
+\end{tabular}
+
+\vfill
+
+{\large September 2026}
+
+\end{titlepage}
+}
