@@ -1,14 +1,38 @@
-# Linear Regression Lab
+# Chapter 3 - Linear Regression
 
-This folder contains the practical lab for the Linear Regression topic in the Data Mining module.
+This folder contains the Chapter 3 exercises and practical lab for the Linear
+Regression topic in the Data Mining module.
 
 ## Overview
 
-The lab focuses on learning how to build, interpret, and evaluate linear regression models in R. It introduces both simple and multiple regression techniques, along with diagnostics and extensions such as interaction terms and polynomial transformations.
+The materials cover how to build, interpret, and evaluate linear regression
+models in R. They include conceptual and applied exercises, simple and
+multiple regression, diagnostics, interaction terms, polynomial
+transformations, and qualitative predictors.
 
-## Files
+## Directory Contents
 
-- [Lab - Linear Regression.Rmd](Lab%20-%20Linear%20Regression.Rmd) — main R Markdown document containing the exercises and code.
+### Exercises
+
+The [exercises](exercises/) folder contains three completed exercises from
+Chapter 3:
+
+- [chapter03_exercises.Rmd](exercises/chapter03_exercises.Rmd) — source R Markdown file.
+- [chapter03_exercises.pdf](exercises/chapter03_exercises.pdf) — compiled exercise submission.
+- [chapter03_exercises.tex](exercises/chapter03_exercises.tex) — generated LaTeX source.
+
+The exercises address null hypotheses in multiple regression, the least
+squares line, and regression through the origin.
+
+### Lab
+
+The [lab](lab/) folder contains the practical R Markdown lab and its generated
+outputs:
+
+- [ch03_lab.Rmd](lab/ch03_lab.Rmd) — lab source file.
+- [ch03_lab.pdf](lab/ch03_lab.pdf) — compiled lab submission.
+- [ch03_lab.tex](lab/ch03_lab.tex) — generated LaTeX source.
+- `ch03_lab_files/` — figures generated during rendering.
 
 ## Topics Covered
 
@@ -22,12 +46,15 @@ The lab focuses on learning how to build, interpret, and evaluate linear regress
 - ANOVA comparisons for nested models
 - Basic R function writing
 
-## Datasets Used
+## Datasets Used in the Lab
 
-This lab uses built-in datasets from the following R packages:
+The lab uses datasets supplied by the following R packages:
 
-- `Boston` from the `MASS` package
-- `Carseats` from the `ISLR2` package
+- `Boston` from `ISLR2`
+- `Carseats` from `ISLR2`
+
+The lab also loads `MASS` for supporting statistical utilities and `car` for
+variance inflation factor calculations.
 
 ## Prerequisites
 
@@ -39,20 +66,24 @@ install.packages(c("MASS", "ISLR2", "car"))
 
 ## How to Run
 
-1. Open [Lab - Linear Regression.Rmd](Lab%20-%20Linear%20Regression.Rmd) in R Studio.
+1. Open [ch03_lab.Rmd](lab/ch03_lab.Rmd) or
+	[chapter03_exercises.Rmd](exercises/chapter03_exercises.Rmd) in RStudio.
 2. Install any missing packages if required.
-3. Run the code chunks in order or click Knit to generate the HTML output.
+3. Run the code chunks in order or click **Knit** to regenerate the PDF and
+	LaTeX output.
 
 ## Learning Objectives
 
 By the end of this lab, the learner should be able to:
 
-- fit linear regression models using `lm()`
+- fit simple and multiple linear regression models using `lm()`
 - interpret coefficients and model summaries
 - compare models and test improvements using ANOVA
 - assess model assumptions through residual analysis
 - include interaction and polynomial terms in the model
 - work with categorical predictors and interpret dummy coding
+- understand regression hypotheses and least squares properties
+- fit and interpret a regression model through the origin
 
 ## Author
 
