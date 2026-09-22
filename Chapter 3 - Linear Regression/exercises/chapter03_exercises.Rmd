@@ -1,0 +1,387 @@
+---
+fontsize: 11pt
+geometry: margin=1in
+output:
+  pdf_document:
+    keep_tex: true
+    number_sections: true
+    extra_dependencies: ["amsmath"]
+header-includes:
+  - \input{../../_common/preamble.tex}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = TRUE,
+  warning = FALSE,
+  message = FALSE,
+  fig.align = "center",
+  fig.width = 6,
+  fig.height = 4
+)
+```
+
+```{=latex}
+\makecoverpage{Chapter 3 --- Linear Regression \\ Exercises 1, 6, 11}
+```
+
+\tableofcontents
+\newpage
+
+# Conceptual Exercises
+
+## Exercise 1 --- Null Hypotheses in Table 3.4
+
+**Question.** Describe the null hypotheses to which the p-values given in Table 3.4
+correspond. Explain what conclusions you can draw based on these p-values.
+Your explanation should be phrased in terms of `sales`, `TV`, `radio`, and
+`newspaper`, rather than in terms of the coefficients of the linear model.
+
+**Setting up the model.** The Advertising data are fit with a single multiple
+regression model in which `sales` is regressed simultaneously on all three
+advertising budgets:
+
+$$
+\text{sales} = \beta_0 + \beta_1 \cdot \text{TV} + \beta_2 \cdot \text{radio} + \beta_3 \cdot \text{newspaper} + \epsilon .
+$$
+
+Table 3.4 (reproduced below from the text) reports the estimated coefficient,
+its standard error, the resulting $t$-statistic, and the p-value for each
+term:
+
+| Predictor   | Coefficient | Std. error | $t$-statistic | p-value  |
+|:------------|------------:|-----------:|---------------:|:---------|
+| Intercept   | 2.939       | 0.3119     | 9.42           | < 0.0001 |
+| TV          | 0.046       | 0.0014     | 32.81          | < 0.0001 |
+| radio       | 0.189       | 0.0086     | 21.89          | < 0.0001 |
+| newspaper   | $-0.001$    | 0.0059     | $-0.18$        | 0.8599   |
+
+**Plain-language explanation.** Each p-value in the table answers one
+narrow question: *if I already know how much was spent on the other two
+advertising channels, does knowing the spend on this particular channel
+still help me predict `sales`?* This is different from asking whether the
+channel is correlated with `sales` on its own — it is asking whether the
+channel carries **extra**, non-redundant information about `sales` once the
+other two channels are held fixed.
+
+- For **TV**, the p-value is tiny (`< 0.0001`). This says: it is essentially
+  impossible that TV spending has *no* effect on `sales` once radio and
+  newspaper spending are held constant — the data would be extremely
+  surprising under that assumption. So we conclude TV advertising is
+  genuinely associated with higher sales, over and above whatever radio and
+  newspaper are doing.
+- For **radio**, the same reasoning applies: the p-value is tiny, so radio
+  spending appears to have a real, additional effect on sales, holding TV
+  and newspaper fixed.
+- For **newspaper**, the p-value is large (`0.8599`). This says the data are
+  entirely consistent with newspaper spending having *no* additional effect
+  on sales once TV and radio are already accounted for. We do **not** have
+  evidence that spending more on newspaper advertising increases sales,
+  after controlling for the other two channels.
+
+**Formal statement.** For each coefficient $\beta_j$, $j \in \{\text{TV},
+\text{radio}, \text{newspaper}\}$, the p-value corresponds to testing
+
+$$
+H_0 : \beta_j = 0 \qquad \text{vs.} \qquad H_a : \beta_j \neq 0,
+$$
+
+holding the other two predictors fixed. At any conventional significance
+level (e.g. $\alpha = 0.05$), we **reject** $H_0$ for TV and radio (strong
+evidence of association with `sales`), and we **fail to reject** $H_0$ for
+newspaper (no evidence of association with `sales`, once TV and radio are
+already in the model).
+
+**A subtlety worth flagging.** This does *not* mean newspaper spending is
+unrelated to sales in a simple, one-predictor regression — on its own it is
+mildly positively correlated with `sales`. The reason it drops out here is
+that newspaper spending is itself correlated with radio spending (markets
+that spend more on radio also tend to spend more on newspaper). Once radio
+is in the model, it "absorbs" the association that newspaper appeared to
+have on its own, and newspaper has nothing left to contribute. This is a
+classic confounding pattern, not a contradiction.
+
+\newpage
+
+## Exercise 6 --- The Least Squares Line Passes Through $(\bar x,\bar y)$
+
+**Question.** Using (3.4), argue that in the case of simple linear
+regression, the least squares line always passes through the point
+$(\bar x, \bar y)$.
+
+**Plain-language idea.** The least squares line is chosen to minimize the
+total squared vertical distance between the data and the line. It turns out
+that the intercept term is *defined* in exactly the way needed to force the
+line through the "average point" of the data — the point whose coordinates
+are the mean of $x$ and the mean of $y$. So this isn't a coincidence that
+happens to hold for some datasets; it's built into the formula for
+$\hat\beta_0$ itself, and therefore holds for *every* dataset.
+
+**Formal argument.** Equation (3.4) gives the least squares estimates for
+simple linear regression as
+
+$$
+\hat\beta_1 = \frac{\sum_{i=1}^n (x_i - \bar x)(y_i - \bar y)}{\sum_{i=1}^n (x_i - \bar x)^2},
+\qquad
+\hat\beta_0 = \bar y - \hat\beta_1 \bar x .
+$$
+
+The fitted regression line is $\hat y = \hat\beta_0 + \hat\beta_1 x$.
+Evaluate this line at $x = \bar x$:
+
+$$
+\hat y \Big|_{x = \bar x} \;=\; \hat\beta_0 + \hat\beta_1 \bar x
+\;=\; \big(\bar y - \hat\beta_1 \bar x\big) + \hat\beta_1 \bar x
+\;=\; \bar y .
+$$
+
+The $\hat\beta_1 \bar x$ terms cancel exactly, leaving $\hat y = \bar y$ when
+$x = \bar x$. Hence the point $(\bar x, \bar y)$ always satisfies the fitted
+equation — that is, it always lies on the least squares line, regardless of
+the particular data values. $\blacksquare$
+
+**Numerical check.** The algebra above holds for *any* numeric data, so the
+following chunk checks it on one arbitrary, fixed data set. Because the
+data are fixed constants (no random number generation involved), the result
+is fully deterministic:
+
+```{r ex6-demo}
+x <- c(1, 2, 3, 4, 5, 6, 7)
+y <- c(2.1, 3.4, 5.0, 4.8, 6.3, 7.1, 7.9)
+
+fit <- lm(y ~ x)
+
+xbar <- mean(x)
+ybar <- mean(y)
+y_hat_at_xbar <- as.numeric(predict(fit, newdata = data.frame(x = xbar)))
+
+data.frame(
+  quantity = c("mean(x)", "mean(y)", "fitted value at mean(x)"),
+  value    = c(xbar, ybar, y_hat_at_xbar)
+)
+
+isTRUE(all.equal(y_hat_at_xbar, ybar))
+```
+
+The final line evaluates to `TRUE`: the fitted value at $\bar x$ equals
+$\bar y$ exactly (up to floating-point rounding), confirming the proof
+above.
+
+\newpage
+
+# Applied Exercises
+
+## Exercise 11 --- Regression Through the Origin
+
+**Question setup.** We generate a predictor `x` and a response `y` as
+follows, and investigate the $t$-statistic for $H_0: \beta = 0$ in simple
+linear regression **without an intercept**.
+
+```{r ex11-setup}
+set.seed(1)
+x <- rnorm(100)
+y <- 2 * x + rnorm(100)
+```
+
+### (a) Regress `y` onto `x`, without an intercept
+
+```{r ex11a}
+fit_yx <- lm(y ~ x + 0)
+summary(fit_yx)
+```
+
+**Comment.** Since `y` was generated as (approximately) $2x$ plus noise, we
+would expect the slope estimate $\hat\beta$ to come out close to $2$, with a
+standard error that is small relative to the estimate, and hence a large
+$t$-statistic and a very small p-value — strong evidence against
+$H_0 : \beta = 0$. Compare these expectations against the actual `Estimate`,
+`Std. Error`, `t value`, and `Pr(>|t|)` printed in the `summary()` output
+above: the fitted slope should sit close to $2$, and the association should
+come through as highly statistically significant.
+
+### (b) Regress `x` onto `y`, without an intercept
+
+```{r ex11b}
+fit_xy <- lm(x ~ y + 0)
+summary(fit_xy)
+```
+
+**Comment.** Now the roles are reversed: we predict `x` from `y`. Since
+$y \approx 2x$, inverting the relationship gives $x \approx y/2$, so we
+would expect the slope estimate here to be roughly $0.5$ — noticeably
+different from the estimate in part (a). What is more interesting is what
+does *not* change: as parts (c)–(e) show, the $t$-statistic testing
+$H_0 : \beta = 0$ is identical in both directions, even though the
+coefficient estimates and their standard errors differ.
+
+### (c) Relationship between (a) and (b)
+
+Both regressions are, in effect, testing the same underlying question:
+*is there a linear association between `x` and `y`?* The coefficient
+estimates in (a) and (b) are not reciprocals of one another and have
+different standard errors, because they are measured on different scales
+(slope of $y$ on $x$ versus slope of $x$ on $y$). However, the strength of
+evidence for association — captured by the $t$-statistic and p-value — turns
+out to be exactly the same in both directions. Parts (d) and (e) show why
+this must be true algebraically, and the R output above/below confirms it
+numerically.
+
+### (d) Algebraic derivation of the $t$-statistic formula
+
+For regression through the origin, (3.38) gives
+
+$$
+\hat\beta = \frac{\sum_{i=1}^n x_i y_i}{\sum_{i'=1}^n x_{i'}^2},
+$$
+
+and the exercise gives the standard error as
+
+$$
+SE(\hat\beta) = \sqrt{\dfrac{\sum_{i=1}^n (y_i - x_i \hat\beta)^2}{(n-1)\sum_{i'=1}^n x_{i'}^2}} .
+$$
+
+We want to show that $t = \hat\beta / SE(\hat\beta)$ can be rewritten as
+
+$$
+t = \frac{\sqrt{n-1}\,\sum_{i=1}^n x_i y_i}{\sqrt{\left(\sum_{i=1}^n x_i^2\right)\left(\sum_{i'=1}^n y_{i'}^2\right) - \left(\sum_{i'=1}^n x_{i'} y_{i'}\right)^2}} .
+$$
+
+**Step 1 — expand the residual sum of squares.** Write
+$S_{xy} = \sum_i x_i y_i$, $S_{xx} = \sum_i x_i^2$, $S_{yy} = \sum_i y_i^2$.
+Expanding the square:
+
+$$
+\sum_i (y_i - x_i\hat\beta)^2 = \sum_i y_i^2 - 2\hat\beta \sum_i x_i y_i + \hat\beta^2 \sum_i x_i^2
+= S_{yy} - 2\hat\beta S_{xy} + \hat\beta^2 S_{xx}.
+$$
+
+**Step 2 — substitute $\hat\beta = S_{xy}/S_{xx}$.**
+
+$$
+2\hat\beta S_{xy} = \frac{2 S_{xy}^2}{S_{xx}}, \qquad
+\hat\beta^2 S_{xx} = \frac{S_{xy}^2}{S_{xx}} .
+$$
+
+So
+
+$$
+\sum_i (y_i - x_i\hat\beta)^2 = S_{yy} - \frac{2S_{xy}^2}{S_{xx}} + \frac{S_{xy}^2}{S_{xx}}
+= S_{yy} - \frac{S_{xy}^2}{S_{xx}}
+= \frac{S_{xx}S_{yy} - S_{xy}^2}{S_{xx}} .
+$$
+
+**Step 3 — assemble the $t$-statistic.**
+
+$$
+t = \frac{\hat\beta}{SE(\hat\beta)}
+= \frac{S_{xy}/S_{xx}}{\sqrt{\dfrac{1}{(n-1)S_{xx}}\left(\dfrac{S_{xx}S_{yy}-S_{xy}^2}{S_{xx}}\right)}}
+= \frac{S_{xy}/S_{xx}}{\sqrt{\dfrac{S_{xx}S_{yy}-S_{xy}^2}{(n-1)S_{xx}^2}}} .
+$$
+
+Since $\sqrt{1/S_{xx}^2} = 1/S_{xx}$ (as $S_{xx} > 0$), the $S_{xx}$ in the
+denominator of $\hat\beta$ cancels with the $S_{xx}$ pulled out of the
+square root:
+
+$$
+t = \frac{S_{xy}/S_{xx}}{\dfrac{1}{S_{xx}}\sqrt{\dfrac{S_{xx}S_{yy}-S_{xy}^2}{n-1}}}
+= \frac{S_{xy}}{\sqrt{\dfrac{S_{xx}S_{yy}-S_{xy}^2}{n-1}}}
+= \frac{\sqrt{n-1}\; S_{xy}}{\sqrt{S_{xx}S_{yy}-S_{xy}^2}},
+$$
+
+which is exactly the target formula, written back in full as
+
+$$
+t = \frac{\sqrt{n-1}\sum_i x_iy_i}{\sqrt{\left(\sum_i x_i^2\right)\left(\sum_i y_i^2\right) - \left(\sum_i x_iy_i\right)^2}}. \qquad \blacksquare
+$$
+
+**Numerical confirmation in R.** The chunk below computes $t$ three
+independent ways — by hand from $\hat\beta$ and $SE(\hat\beta)$, from the
+closed-form formula just derived, and by reading it off `lm()`'s own
+summary — and checks that all three agree:
+
+```{r ex11d}
+n <- length(x)
+
+beta_hat <- sum(x * y) / sum(x^2)
+se_beta  <- sqrt(sum((y - x * beta_hat)^2) / ((n - 1) * sum(x^2)))
+t_manual <- beta_hat / se_beta
+
+t_formula <- (sqrt(n - 1) * sum(x * y)) /
+  sqrt(sum(x^2) * sum(y^2) - (sum(x * y))^2)
+
+t_lm <- summary(fit_yx)$coefficients["x", "t value"]
+
+data.frame(
+  method = c("by hand (beta_hat / SE)", "closed-form formula", "lm() summary"),
+  t_stat = c(t_manual, t_formula, as.numeric(t_lm))
+)
+
+isTRUE(all.equal(t_manual, t_formula)) &&
+  isTRUE(all.equal(t_manual, as.numeric(t_lm)))
+```
+
+The final line should evaluate to `TRUE`, confirming that the algebra above
+matches both a from-scratch numerical computation and what `lm()` reports.
+
+### (e) The $t$-statistic is the same for `y` on `x` as for `x` on `y`
+
+Look at the closed-form expression from part (d):
+
+$$
+t = \frac{\sqrt{n-1}\sum_i x_i y_i}{\sqrt{\left(\sum_i x_i^2\right)\left(\sum_i y_i^2\right) - \left(\sum_i x_i y_i\right)^2}} .
+$$
+
+This formula treats $x$ and $y$ almost, but not quite, symmetrically — the
+only way $x$ and $y$ enter is through the three summary quantities
+$S_{xy} = \sum_i x_iy_i$, $S_{xx} = \sum_i x_i^2$, and $S_{yy} = \sum_i
+y_i^2$. If instead we regress $x$ onto $y$ (without an intercept), the
+same derivation applies with the roles of $x$ and $y$ swapped throughout,
+giving
+
+$$
+t' = \frac{\sqrt{n-1}\sum_i y_i x_i}{\sqrt{\left(\sum_i y_i^2\right)\left(\sum_i x_i^2\right) - \left(\sum_i y_ix_i\right)^2}} .
+$$
+
+But $\sum_i x_iy_i = \sum_i y_ix_i$ (multiplication of real numbers is
+commutative), and the product $\left(\sum_i y_i^2\right)\left(\sum_i
+x_i^2\right)$ is the same regardless of the order in which the two sums are
+multiplied. So the numerator and denominator of $t'$ are literally the same
+expressions as in $t$, just written in a different order:
+$t' = t$. This is exactly the pattern already glimpsed numerically in parts
+(a)–(b): the coefficient estimates differ, but the $t$-statistic for
+$H_0 : \beta = 0$ does not.
+
+### (f) With an intercept: same check in R
+
+```{r ex11f}
+fit_yx_int <- lm(y ~ x)
+fit_xy_int <- lm(x ~ y)
+
+t_yx_int <- summary(fit_yx_int)$coefficients["x", "t value"]
+t_xy_int <- summary(fit_xy_int)$coefficients["y", "t value"]
+
+data.frame(
+  regression = c("y ~ x", "x ~ y"),
+  t_stat     = c(as.numeric(t_yx_int), as.numeric(t_xy_int))
+)
+
+isTRUE(all.equal(as.numeric(t_yx_int), as.numeric(t_xy_int)))
+```
+
+The final line should again evaluate to `TRUE`. This is not a coincidence
+special to regression through the origin: for simple linear regression
+**with** an intercept, it is a standard result that the $t$-statistic for
+testing $H_0 : \beta_1 = 0$ satisfies
+
+$$
+t^2 = \frac{(n-2)\, r_{xy}^2}{1 - r_{xy}^2},
+$$
+
+where $r_{xy}$ is the sample correlation between $x$ and $y$. Because
+correlation is symmetric ($r_{xy} = r_{yx}$), this expression is identical
+whether we regress $y$ on $x$ or $x$ on $y$ — so the two regressions must
+again produce the same $t$-statistic, exactly as the R output above
+confirms.
+
+\newpage
+

@@ -1,0 +1,626 @@
+% Options for packages loaded elsewhere
+\PassOptionsToPackage{unicode}{hyperref}
+\PassOptionsToPackage{hyphens}{url}
+\documentclass[
+  11pt,
+]{article}
+\usepackage{xcolor}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb}
+\setcounter{secnumdepth}{5}
+\usepackage{iftex}
+\ifPDFTeX
+  \usepackage[T1]{fontenc}
+  \usepackage[utf8]{inputenc}
+  \usepackage{textcomp} % provide euro and other symbols
+\else % if luatex or xetex
+  \usepackage{unicode-math} % this also loads fontspec
+  \defaultfontfeatures{Scale=MatchLowercase}
+  \defaultfontfeatures[\rmfamily]{Ligatures=TeX,Scale=1}
+\fi
+\usepackage{lmodern}
+\ifPDFTeX\else
+  % xetex/luatex font selection
+\fi
+% Use upquote if available, for straight quotes in verbatim environments
+\IfFileExists{upquote.sty}{\usepackage{upquote}}{}
+\IfFileExists{microtype.sty}{% use microtype if available
+  \usepackage[]{microtype}
+  \UseMicrotypeSet[protrusion]{basicmath} % disable protrusion for tt fonts
+}{}
+\makeatletter
+\@ifundefined{KOMAClassName}{% if non-KOMA class
+  \IfFileExists{parskip.sty}{%
+    \usepackage{parskip}
+  }{% else
+    \setlength{\parindent}{0pt}
+    \setlength{\parskip}{6pt plus 2pt minus 1pt}}
+}{% if KOMA class
+  \KOMAoptions{parskip=half}}
+\makeatother
+\usepackage{color}
+\usepackage{fancyvrb}
+\newcommand{\VerbBar}{|}
+\newcommand{\VERB}{\Verb[commandchars=\\\{\}]}
+\DefineVerbatimEnvironment{Highlighting}{Verbatim}{commandchars=\\\{\}}
+% Add ',fontsize=\small' for more characters per line
+\usepackage{framed}
+\definecolor{shadecolor}{RGB}{248,248,248}
+\newenvironment{Shaded}{\begin{snugshade}}{\end{snugshade}}
+\newcommand{\AlertTok}[1]{\textcolor[rgb]{0.94,0.16,0.16}{#1}}
+\newcommand{\AnnotationTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
+\newcommand{\AttributeTok}[1]{\textcolor[rgb]{0.13,0.29,0.53}{#1}}
+\newcommand{\BaseNTok}[1]{\textcolor[rgb]{0.00,0.00,0.81}{#1}}
+\newcommand{\BuiltInTok}[1]{#1}
+\newcommand{\CharTok}[1]{\textcolor[rgb]{0.31,0.60,0.02}{#1}}
+\newcommand{\CommentTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textit{#1}}}
+\newcommand{\CommentVarTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
+\newcommand{\ConstantTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{#1}}
+\newcommand{\ControlFlowTok}[1]{\textcolor[rgb]{0.13,0.29,0.53}{\textbf{#1}}}
+\newcommand{\DataTypeTok}[1]{\textcolor[rgb]{0.13,0.29,0.53}{#1}}
+\newcommand{\DecValTok}[1]{\textcolor[rgb]{0.00,0.00,0.81}{#1}}
+\newcommand{\DocumentationTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
+\newcommand{\ErrorTok}[1]{\textcolor[rgb]{0.64,0.00,0.00}{\textbf{#1}}}
+\newcommand{\ExtensionTok}[1]{#1}
+\newcommand{\FloatTok}[1]{\textcolor[rgb]{0.00,0.00,0.81}{#1}}
+\newcommand{\FunctionTok}[1]{\textcolor[rgb]{0.13,0.29,0.53}{\textbf{#1}}}
+\newcommand{\ImportTok}[1]{#1}
+\newcommand{\InformationTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
+\newcommand{\KeywordTok}[1]{\textcolor[rgb]{0.13,0.29,0.53}{\textbf{#1}}}
+\newcommand{\NormalTok}[1]{#1}
+\newcommand{\OperatorTok}[1]{\textcolor[rgb]{0.81,0.36,0.00}{\textbf{#1}}}
+\newcommand{\OtherTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{#1}}
+\newcommand{\PreprocessorTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textit{#1}}}
+\newcommand{\RegionMarkerTok}[1]{#1}
+\newcommand{\SpecialCharTok}[1]{\textcolor[rgb]{0.81,0.36,0.00}{\textbf{#1}}}
+\newcommand{\SpecialStringTok}[1]{\textcolor[rgb]{0.31,0.60,0.02}{#1}}
+\newcommand{\StringTok}[1]{\textcolor[rgb]{0.31,0.60,0.02}{#1}}
+\newcommand{\VariableTok}[1]{\textcolor[rgb]{0.00,0.00,0.00}{#1}}
+\newcommand{\VerbatimStringTok}[1]{\textcolor[rgb]{0.31,0.60,0.02}{#1}}
+\newcommand{\WarningTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
+\usepackage{longtable,booktabs,array}
+\newcounter{none} % for unnumbered tables
+\usepackage{calc} % for calculating minipage widths
+% Correct order of tables after \paragraph or \subparagraph
+\usepackage{etoolbox}
+\makeatletter
+\patchcmd\longtable{\par}{\if@noskipsec\mbox{}\fi\par}{}{}
+\makeatother
+% Allow footnotes in longtable head/foot
+\IfFileExists{footnotehyper.sty}{\usepackage{footnotehyper}}{\usepackage{footnote}}
+\makesavenoteenv{longtable}
+\usepackage{graphicx}
+\makeatletter
+\newsavebox\pandoc@box
+\newcommand*\pandocbounded[1]{% scales image to fit in text height/width
+  \sbox\pandoc@box{#1}%
+  \Gscale@div\@tempa{\textheight}{\dimexpr\ht\pandoc@box+\dp\pandoc@box\relax}%
+  \Gscale@div\@tempb{\linewidth}{\wd\pandoc@box}%
+  \ifdim\@tempb\p@<\@tempa\p@\let\@tempa\@tempb\fi% select the smaller of both
+  \ifdim\@tempa\p@<\p@\scalebox{\@tempa}{\usebox\pandoc@box}%
+  \else\usebox{\pandoc@box}%
+  \fi%
+}
+% Set default figure placement to htbp
+\def\fps@figure{htbp}
+\makeatother
+\setlength{\emergencystretch}{3em} % prevent overfull lines
+\providecommand{\tightlist}{%
+  \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+\input{../../_common/preamble.tex}
+\usepackage{amsmath}
+\usepackage{bookmark}
+\IfFileExists{xurl.sty}{\usepackage{xurl}}{} % add URL line breaks if available
+\urlstyle{same}
+\hypersetup{
+  hidelinks,
+  pdfcreator={LaTeX via pandoc}}
+
+\author{}
+\date{\vspace{-2.5em}}
+
+\begin{document}
+
+\makecoverpage{Chapter 3 --- Linear Regression \\ Exercises 1, 6, 11}
+
+\tableofcontents
+\newpage
+
+\section{Conceptual Exercises}\label{conceptual-exercises}
+
+\subsection{Exercise 1 --- Null Hypotheses in Table
+3.4}\label{exercise-1-null-hypotheses-in-table-3.4}
+
+\textbf{Question.} Describe the null hypotheses to which the p-values
+given in Table 3.4 correspond. Explain what conclusions you can draw
+based on these p-values. Your explanation should be phrased in terms of
+\texttt{sales}, \texttt{TV}, \texttt{radio}, and \texttt{newspaper},
+rather than in terms of the coefficients of the linear model.
+
+\textbf{Setting up the model.} The Advertising data are fit with a
+single multiple regression model in which \texttt{sales} is regressed
+simultaneously on all three advertising budgets:
+
+\[
+\text{sales} = \beta_0 + \beta_1 \cdot \text{TV} + \beta_2 \cdot \text{radio} + \beta_3 \cdot \text{newspaper} + \epsilon .
+\]
+
+Table 3.4 (reproduced below from the text) reports the estimated
+coefficient, its standard error, the resulting \(t\)-statistic, and the
+p-value for each term:
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}lrrrl@{}}
+\toprule\noalign{}
+Predictor & Coefficient & Std. error & \(t\)-statistic & p-value \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+Intercept & 2.939 & 0.3119 & 9.42 & \textless{} 0.0001 \\
+TV & 0.046 & 0.0014 & 32.81 & \textless{} 0.0001 \\
+radio & 0.189 & 0.0086 & 21.89 & \textless{} 0.0001 \\
+newspaper & \(-0.001\) & 0.0059 & \(-0.18\) & 0.8599 \\
+\end{longtable}
+}
+
+\textbf{Plain-language explanation.} Each p-value in the table answers
+one narrow question: \emph{if I already know how much was spent on the
+other two advertising channels, does knowing the spend on this
+particular channel still help me predict \texttt{sales}?} This is
+different from asking whether the channel is correlated with
+\texttt{sales} on its own --- it is asking whether the channel carries
+\textbf{extra}, non-redundant information about \texttt{sales} once the
+other two channels are held fixed.
+
+\begin{itemize}
+\tightlist
+\item
+  For \textbf{TV}, the p-value is tiny (\texttt{\textless{}\ 0.0001}).
+  This says: it is essentially impossible that TV spending has \emph{no}
+  effect on \texttt{sales} once radio and newspaper spending are held
+  constant --- the data would be extremely surprising under that
+  assumption. So we conclude TV advertising is genuinely associated with
+  higher sales, over and above whatever radio and newspaper are doing.
+\item
+  For \textbf{radio}, the same reasoning applies: the p-value is tiny,
+  so radio spending appears to have a real, additional effect on sales,
+  holding TV and newspaper fixed.
+\item
+  For \textbf{newspaper}, the p-value is large (\texttt{0.8599}). This
+  says the data are entirely consistent with newspaper spending having
+  \emph{no} additional effect on sales once TV and radio are already
+  accounted for. We do \textbf{not} have evidence that spending more on
+  newspaper advertising increases sales, after controlling for the other
+  two channels.
+\end{itemize}
+
+\textbf{Formal statement.} For each coefficient \(\beta_j\),
+\(j \in \{\text{TV},
+\text{radio}, \text{newspaper}\}\), the p-value corresponds to testing
+
+\[
+H_0 : \beta_j = 0 \qquad \text{vs.} \qquad H_a : \beta_j \neq 0,
+\]
+
+holding the other two predictors fixed. At any conventional significance
+level (e.g.~\(\alpha = 0.05\)), we \textbf{reject} \(H_0\) for TV and
+radio (strong evidence of association with \texttt{sales}), and we
+\textbf{fail to reject} \(H_0\) for newspaper (no evidence of
+association with \texttt{sales}, once TV and radio are already in the
+model).
+
+\textbf{A subtlety worth flagging.} This does \emph{not} mean newspaper
+spending is unrelated to sales in a simple, one-predictor regression ---
+on its own it is mildly positively correlated with \texttt{sales}. The
+reason it drops out here is that newspaper spending is itself correlated
+with radio spending (markets that spend more on radio also tend to spend
+more on newspaper). Once radio is in the model, it ``absorbs'' the
+association that newspaper appeared to have on its own, and newspaper
+has nothing left to contribute. This is a classic confounding pattern,
+not a contradiction.
+
+\newpage
+
+\subsection{\texorpdfstring{Exercise 6 --- The Least Squares Line Passes
+Through
+\((\bar x,\bar y)\)}{Exercise 6 --- The Least Squares Line Passes Through (\textbackslash bar x,\textbackslash bar y)}}\label{exercise-6-the-least-squares-line-passes-through-bar-xbar-y}
+
+\textbf{Question.} Using (3.4), argue that in the case of simple linear
+regression, the least squares line always passes through the point
+\((\bar x, \bar y)\).
+
+\textbf{Plain-language idea.} The least squares line is chosen to
+minimize the total squared vertical distance between the data and the
+line. It turns out that the intercept term is \emph{defined} in exactly
+the way needed to force the line through the ``average point'' of the
+data --- the point whose coordinates are the mean of \(x\) and the mean
+of \(y\). So this isn't a coincidence that happens to hold for some
+datasets; it's built into the formula for \(\hat\beta_0\) itself, and
+therefore holds for \emph{every} dataset.
+
+\textbf{Formal argument.} Equation (3.4) gives the least squares
+estimates for simple linear regression as
+
+\[
+\hat\beta_1 = \frac{\sum_{i=1}^n (x_i - \bar x)(y_i - \bar y)}{\sum_{i=1}^n (x_i - \bar x)^2},
+\qquad
+\hat\beta_0 = \bar y - \hat\beta_1 \bar x .
+\]
+
+The fitted regression line is \(\hat y = \hat\beta_0 + \hat\beta_1 x\).
+Evaluate this line at \(x = \bar x\):
+
+\[
+\hat y \Big|_{x = \bar x} \;=\; \hat\beta_0 + \hat\beta_1 \bar x
+\;=\; \big(\bar y - \hat\beta_1 \bar x\big) + \hat\beta_1 \bar x
+\;=\; \bar y .
+\]
+
+The \(\hat\beta_1 \bar x\) terms cancel exactly, leaving
+\(\hat y = \bar y\) when \(x = \bar x\). Hence the point
+\((\bar x, \bar y)\) always satisfies the fitted equation --- that is,
+it always lies on the least squares line, regardless of the particular
+data values. \(\blacksquare\)
+
+\textbf{Numerical check.} The algebra above holds for \emph{any} numeric
+data, so the following chunk checks it on one arbitrary, fixed data set.
+Because the data are fixed constants (no random number generation
+involved), the result is fully deterministic:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{x }\OtherTok{\textless{}{-}} \FunctionTok{c}\NormalTok{(}\DecValTok{1}\NormalTok{, }\DecValTok{2}\NormalTok{, }\DecValTok{3}\NormalTok{, }\DecValTok{4}\NormalTok{, }\DecValTok{5}\NormalTok{, }\DecValTok{6}\NormalTok{, }\DecValTok{7}\NormalTok{)}
+\NormalTok{y }\OtherTok{\textless{}{-}} \FunctionTok{c}\NormalTok{(}\FloatTok{2.1}\NormalTok{, }\FloatTok{3.4}\NormalTok{, }\FloatTok{5.0}\NormalTok{, }\FloatTok{4.8}\NormalTok{, }\FloatTok{6.3}\NormalTok{, }\FloatTok{7.1}\NormalTok{, }\FloatTok{7.9}\NormalTok{)}
+
+\NormalTok{fit }\OtherTok{\textless{}{-}} \FunctionTok{lm}\NormalTok{(y }\SpecialCharTok{\textasciitilde{}}\NormalTok{ x)}
+
+\NormalTok{xbar }\OtherTok{\textless{}{-}} \FunctionTok{mean}\NormalTok{(x)}
+\NormalTok{ybar }\OtherTok{\textless{}{-}} \FunctionTok{mean}\NormalTok{(y)}
+\NormalTok{y\_hat\_at\_xbar }\OtherTok{\textless{}{-}} \FunctionTok{as.numeric}\NormalTok{(}\FunctionTok{predict}\NormalTok{(fit, }\AttributeTok{newdata =} \FunctionTok{data.frame}\NormalTok{(}\AttributeTok{x =}\NormalTok{ xbar)))}
+
+\FunctionTok{data.frame}\NormalTok{(}
+  \AttributeTok{quantity =} \FunctionTok{c}\NormalTok{(}\StringTok{"mean(x)"}\NormalTok{, }\StringTok{"mean(y)"}\NormalTok{, }\StringTok{"fitted value at mean(x)"}\NormalTok{),}
+  \AttributeTok{value    =} \FunctionTok{c}\NormalTok{(xbar, ybar, y\_hat\_at\_xbar)}
+\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+##                  quantity    value
+## 1                 mean(x) 4.000000
+## 2                 mean(y) 5.228571
+## 3 fitted value at mean(x) 5.228571
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{isTRUE}\NormalTok{(}\FunctionTok{all.equal}\NormalTok{(y\_hat\_at\_xbar, ybar))}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## [1] TRUE
+\end{verbatim}
+
+The final line evaluates to \texttt{TRUE}: the fitted value at
+\(\bar x\) equals \(\bar y\) exactly (up to floating-point rounding),
+confirming the proof above.
+
+\newpage
+
+\section{Applied Exercises}\label{applied-exercises}
+
+\subsection{Exercise 11 --- Regression Through the
+Origin}\label{exercise-11-regression-through-the-origin}
+
+\textbf{Question setup.} We generate a predictor \texttt{x} and a
+response \texttt{y} as follows, and investigate the \(t\)-statistic for
+\(H_0: \beta = 0\) in simple linear regression \textbf{without an
+intercept}.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{set.seed}\NormalTok{(}\DecValTok{1}\NormalTok{)}
+\NormalTok{x }\OtherTok{\textless{}{-}} \FunctionTok{rnorm}\NormalTok{(}\DecValTok{100}\NormalTok{)}
+\NormalTok{y }\OtherTok{\textless{}{-}} \DecValTok{2} \SpecialCharTok{*}\NormalTok{ x }\SpecialCharTok{+} \FunctionTok{rnorm}\NormalTok{(}\DecValTok{100}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\subsubsection{\texorpdfstring{(a) Regress \texttt{y} onto \texttt{x},
+without an
+intercept}{(a) Regress y onto x, without an intercept}}\label{a-regress-y-onto-x-without-an-intercept}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{fit\_yx }\OtherTok{\textless{}{-}} \FunctionTok{lm}\NormalTok{(y }\SpecialCharTok{\textasciitilde{}}\NormalTok{ x }\SpecialCharTok{+} \DecValTok{0}\NormalTok{)}
+\FunctionTok{summary}\NormalTok{(fit\_yx)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## 
+## Call:
+## lm(formula = y ~ x + 0)
+## 
+## Residuals:
+##     Min      1Q  Median      3Q     Max 
+## -1.9154 -0.6472 -0.1771  0.5056  2.3109 
+## 
+## Coefficients:
+##   Estimate Std. Error t value Pr(>|t|)    
+## x   1.9939     0.1065   18.73   <2e-16 ***
+## ---
+## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+## 
+## Residual standard error: 0.9586 on 99 degrees of freedom
+## Multiple R-squared:  0.7798, Adjusted R-squared:  0.7776 
+## F-statistic: 350.7 on 1 and 99 DF,  p-value: < 2.2e-16
+\end{verbatim}
+
+\textbf{Comment.} Since \texttt{y} was generated as (approximately)
+\(2x\) plus noise, we would expect the slope estimate \(\hat\beta\) to
+come out close to \(2\), with a standard error that is small relative to
+the estimate, and hence a large \(t\)-statistic and a very small p-value
+--- strong evidence against \(H_0 : \beta = 0\). Compare these
+expectations against the actual \texttt{Estimate}, \texttt{Std.\ Error},
+\texttt{t\ value}, and \texttt{Pr(\textgreater{}\textbar{}t\textbar{})}
+printed in the \texttt{summary()} output above: the fitted slope should
+sit close to \(2\), and the association should come through as highly
+statistically significant.
+
+\subsubsection{\texorpdfstring{(b) Regress \texttt{x} onto \texttt{y},
+without an
+intercept}{(b) Regress x onto y, without an intercept}}\label{b-regress-x-onto-y-without-an-intercept}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{fit\_xy }\OtherTok{\textless{}{-}} \FunctionTok{lm}\NormalTok{(x }\SpecialCharTok{\textasciitilde{}}\NormalTok{ y }\SpecialCharTok{+} \DecValTok{0}\NormalTok{)}
+\FunctionTok{summary}\NormalTok{(fit\_xy)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## 
+## Call:
+## lm(formula = x ~ y + 0)
+## 
+## Residuals:
+##     Min      1Q  Median      3Q     Max 
+## -0.8699 -0.2368  0.1030  0.2858  0.8938 
+## 
+## Coefficients:
+##   Estimate Std. Error t value Pr(>|t|)    
+## y  0.39111    0.02089   18.73   <2e-16 ***
+## ---
+## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+## 
+## Residual standard error: 0.4246 on 99 degrees of freedom
+## Multiple R-squared:  0.7798, Adjusted R-squared:  0.7776 
+## F-statistic: 350.7 on 1 and 99 DF,  p-value: < 2.2e-16
+\end{verbatim}
+
+\textbf{Comment.} Now the roles are reversed: we predict \texttt{x} from
+\texttt{y}. Since \(y \approx 2x\), inverting the relationship gives
+\(x \approx y/2\), so we would expect the slope estimate here to be
+roughly \(0.5\) --- noticeably different from the estimate in part (a).
+What is more interesting is what does \emph{not} change: as parts
+(c)--(e) show, the \(t\)-statistic testing \(H_0 : \beta = 0\) is
+identical in both directions, even though the coefficient estimates and
+their standard errors differ.
+
+\subsubsection{(c) Relationship between (a) and
+(b)}\label{c-relationship-between-a-and-b}
+
+Both regressions are, in effect, testing the same underlying question:
+\emph{is there a linear association between \texttt{x} and \texttt{y}?}
+The coefficient estimates in (a) and (b) are not reciprocals of one
+another and have different standard errors, because they are measured on
+different scales (slope of \(y\) on \(x\) versus slope of \(x\) on
+\(y\)). However, the strength of evidence for association --- captured
+by the \(t\)-statistic and p-value --- turns out to be exactly the same
+in both directions. Parts (d) and (e) show why this must be true
+algebraically, and the R output above/below confirms it numerically.
+
+\subsubsection{\texorpdfstring{(d) Algebraic derivation of the
+\(t\)-statistic
+formula}{(d) Algebraic derivation of the t-statistic formula}}\label{d-algebraic-derivation-of-the-t-statistic-formula}
+
+For regression through the origin, (3.38) gives
+
+\[
+\hat\beta = \frac{\sum_{i=1}^n x_i y_i}{\sum_{i'=1}^n x_{i'}^2},
+\]
+
+and the exercise gives the standard error as
+
+\[
+SE(\hat\beta) = \sqrt{\dfrac{\sum_{i=1}^n (y_i - x_i \hat\beta)^2}{(n-1)\sum_{i'=1}^n x_{i'}^2}} .
+\]
+
+We want to show that \(t = \hat\beta / SE(\hat\beta)\) can be rewritten
+as
+
+\[
+t = \frac{\sqrt{n-1}\,\sum_{i=1}^n x_i y_i}{\sqrt{\left(\sum_{i=1}^n x_i^2\right)\left(\sum_{i'=1}^n y_{i'}^2\right) - \left(\sum_{i'=1}^n x_{i'} y_{i'}\right)^2}} .
+\]
+
+\textbf{Step 1 --- expand the residual sum of squares.} Write
+\(S_{xy} = \sum_i x_i y_i\), \(S_{xx} = \sum_i x_i^2\),
+\(S_{yy} = \sum_i y_i^2\). Expanding the square:
+
+\[
+\sum_i (y_i - x_i\hat\beta)^2 = \sum_i y_i^2 - 2\hat\beta \sum_i x_i y_i + \hat\beta^2 \sum_i x_i^2
+= S_{yy} - 2\hat\beta S_{xy} + \hat\beta^2 S_{xx}.
+\]
+
+\textbf{Step 2 --- substitute \(\hat\beta = S_{xy}/S_{xx}\).}
+
+\[
+2\hat\beta S_{xy} = \frac{2 S_{xy}^2}{S_{xx}}, \qquad
+\hat\beta^2 S_{xx} = \frac{S_{xy}^2}{S_{xx}} .
+\]
+
+So
+
+\[
+\sum_i (y_i - x_i\hat\beta)^2 = S_{yy} - \frac{2S_{xy}^2}{S_{xx}} + \frac{S_{xy}^2}{S_{xx}}
+= S_{yy} - \frac{S_{xy}^2}{S_{xx}}
+= \frac{S_{xx}S_{yy} - S_{xy}^2}{S_{xx}} .
+\]
+
+\textbf{Step 3 --- assemble the \(t\)-statistic.}
+
+\[
+t = \frac{\hat\beta}{SE(\hat\beta)}
+= \frac{S_{xy}/S_{xx}}{\sqrt{\dfrac{1}{(n-1)S_{xx}}\left(\dfrac{S_{xx}S_{yy}-S_{xy}^2}{S_{xx}}\right)}}
+= \frac{S_{xy}/S_{xx}}{\sqrt{\dfrac{S_{xx}S_{yy}-S_{xy}^2}{(n-1)S_{xx}^2}}} .
+\]
+
+Since \(\sqrt{1/S_{xx}^2} = 1/S_{xx}\) (as \(S_{xx} > 0\)), the
+\(S_{xx}\) in the denominator of \(\hat\beta\) cancels with the
+\(S_{xx}\) pulled out of the square root:
+
+\[
+t = \frac{S_{xy}/S_{xx}}{\dfrac{1}{S_{xx}}\sqrt{\dfrac{S_{xx}S_{yy}-S_{xy}^2}{n-1}}}
+= \frac{S_{xy}}{\sqrt{\dfrac{S_{xx}S_{yy}-S_{xy}^2}{n-1}}}
+= \frac{\sqrt{n-1}\; S_{xy}}{\sqrt{S_{xx}S_{yy}-S_{xy}^2}},
+\]
+
+which is exactly the target formula, written back in full as
+
+\[
+t = \frac{\sqrt{n-1}\sum_i x_iy_i}{\sqrt{\left(\sum_i x_i^2\right)\left(\sum_i y_i^2\right) - \left(\sum_i x_iy_i\right)^2}}. \qquad \blacksquare
+\]
+
+\textbf{Numerical confirmation in R.} The chunk below computes \(t\)
+three independent ways --- by hand from \(\hat\beta\) and
+\(SE(\hat\beta)\), from the closed-form formula just derived, and by
+reading it off \texttt{lm()}'s own summary --- and checks that all three
+agree:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{n }\OtherTok{\textless{}{-}} \FunctionTok{length}\NormalTok{(x)}
+
+\NormalTok{beta\_hat }\OtherTok{\textless{}{-}} \FunctionTok{sum}\NormalTok{(x }\SpecialCharTok{*}\NormalTok{ y) }\SpecialCharTok{/} \FunctionTok{sum}\NormalTok{(x}\SpecialCharTok{\^{}}\DecValTok{2}\NormalTok{)}
+\NormalTok{se\_beta  }\OtherTok{\textless{}{-}} \FunctionTok{sqrt}\NormalTok{(}\FunctionTok{sum}\NormalTok{((y }\SpecialCharTok{{-}}\NormalTok{ x }\SpecialCharTok{*}\NormalTok{ beta\_hat)}\SpecialCharTok{\^{}}\DecValTok{2}\NormalTok{) }\SpecialCharTok{/}\NormalTok{ ((n }\SpecialCharTok{{-}} \DecValTok{1}\NormalTok{) }\SpecialCharTok{*} \FunctionTok{sum}\NormalTok{(x}\SpecialCharTok{\^{}}\DecValTok{2}\NormalTok{)))}
+\NormalTok{t\_manual }\OtherTok{\textless{}{-}}\NormalTok{ beta\_hat }\SpecialCharTok{/}\NormalTok{ se\_beta}
+
+\NormalTok{t\_formula }\OtherTok{\textless{}{-}}\NormalTok{ (}\FunctionTok{sqrt}\NormalTok{(n }\SpecialCharTok{{-}} \DecValTok{1}\NormalTok{) }\SpecialCharTok{*} \FunctionTok{sum}\NormalTok{(x }\SpecialCharTok{*}\NormalTok{ y)) }\SpecialCharTok{/}
+  \FunctionTok{sqrt}\NormalTok{(}\FunctionTok{sum}\NormalTok{(x}\SpecialCharTok{\^{}}\DecValTok{2}\NormalTok{) }\SpecialCharTok{*} \FunctionTok{sum}\NormalTok{(y}\SpecialCharTok{\^{}}\DecValTok{2}\NormalTok{) }\SpecialCharTok{{-}}\NormalTok{ (}\FunctionTok{sum}\NormalTok{(x }\SpecialCharTok{*}\NormalTok{ y))}\SpecialCharTok{\^{}}\DecValTok{2}\NormalTok{)}
+
+\NormalTok{t\_lm }\OtherTok{\textless{}{-}} \FunctionTok{summary}\NormalTok{(fit\_yx)}\SpecialCharTok{$}\NormalTok{coefficients[}\StringTok{"x"}\NormalTok{, }\StringTok{"t value"}\NormalTok{]}
+
+\FunctionTok{data.frame}\NormalTok{(}
+  \AttributeTok{method =} \FunctionTok{c}\NormalTok{(}\StringTok{"by hand (beta\_hat / SE)"}\NormalTok{, }\StringTok{"closed{-}form formula"}\NormalTok{, }\StringTok{"lm() summary"}\NormalTok{),}
+  \AttributeTok{t\_stat =} \FunctionTok{c}\NormalTok{(t\_manual, t\_formula, }\FunctionTok{as.numeric}\NormalTok{(t\_lm))}
+\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+##                    method   t_stat
+## 1 by hand (beta_hat / SE) 18.72593
+## 2     closed-form formula 18.72593
+## 3            lm() summary 18.72593
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{isTRUE}\NormalTok{(}\FunctionTok{all.equal}\NormalTok{(t\_manual, t\_formula)) }\SpecialCharTok{\&\&}
+  \FunctionTok{isTRUE}\NormalTok{(}\FunctionTok{all.equal}\NormalTok{(t\_manual, }\FunctionTok{as.numeric}\NormalTok{(t\_lm)))}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## [1] TRUE
+\end{verbatim}
+
+The final line should evaluate to \texttt{TRUE}, confirming that the
+algebra above matches both a from-scratch numerical computation and what
+\texttt{lm()} reports.
+
+\subsubsection{\texorpdfstring{(e) The \(t\)-statistic is the same for
+\texttt{y} on \texttt{x} as for \texttt{x} on
+\texttt{y}}{(e) The t-statistic is the same for y on x as for x on y}}\label{e-the-t-statistic-is-the-same-for-y-on-x-as-for-x-on-y}
+
+Look at the closed-form expression from part (d):
+
+\[
+t = \frac{\sqrt{n-1}\sum_i x_i y_i}{\sqrt{\left(\sum_i x_i^2\right)\left(\sum_i y_i^2\right) - \left(\sum_i x_i y_i\right)^2}} .
+\]
+
+This formula treats \(x\) and \(y\) almost, but not quite, symmetrically
+--- the only way \(x\) and \(y\) enter is through the three summary
+quantities \(S_{xy} = \sum_i x_iy_i\), \(S_{xx} = \sum_i x_i^2\), and
+\(S_{yy} = \sum_i
+y_i^2\). If instead we regress \(x\) onto \(y\) (without an intercept),
+the same derivation applies with the roles of \(x\) and \(y\) swapped
+throughout, giving
+
+\[
+t' = \frac{\sqrt{n-1}\sum_i y_i x_i}{\sqrt{\left(\sum_i y_i^2\right)\left(\sum_i x_i^2\right) - \left(\sum_i y_ix_i\right)^2}} .
+\]
+
+But \(\sum_i x_iy_i = \sum_i y_ix_i\) (multiplication of real numbers is
+commutative), and the product \(\left(\sum_i y_i^2\right)\left(\sum_i
+x_i^2\right)\) is the same regardless of the order in which the two sums
+are multiplied. So the numerator and denominator of \(t'\) are literally
+the same expressions as in \(t\), just written in a different order:
+\(t' = t\). This is exactly the pattern already glimpsed numerically in
+parts (a)--(b): the coefficient estimates differ, but the
+\(t\)-statistic for \(H_0 : \beta = 0\) does not.
+
+\subsubsection{(f) With an intercept: same check in
+R}\label{f-with-an-intercept-same-check-in-r}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{fit\_yx\_int }\OtherTok{\textless{}{-}} \FunctionTok{lm}\NormalTok{(y }\SpecialCharTok{\textasciitilde{}}\NormalTok{ x)}
+\NormalTok{fit\_xy\_int }\OtherTok{\textless{}{-}} \FunctionTok{lm}\NormalTok{(x }\SpecialCharTok{\textasciitilde{}}\NormalTok{ y)}
+
+\NormalTok{t\_yx\_int }\OtherTok{\textless{}{-}} \FunctionTok{summary}\NormalTok{(fit\_yx\_int)}\SpecialCharTok{$}\NormalTok{coefficients[}\StringTok{"x"}\NormalTok{, }\StringTok{"t value"}\NormalTok{]}
+\NormalTok{t\_xy\_int }\OtherTok{\textless{}{-}} \FunctionTok{summary}\NormalTok{(fit\_xy\_int)}\SpecialCharTok{$}\NormalTok{coefficients[}\StringTok{"y"}\NormalTok{, }\StringTok{"t value"}\NormalTok{]}
+
+\FunctionTok{data.frame}\NormalTok{(}
+  \AttributeTok{regression =} \FunctionTok{c}\NormalTok{(}\StringTok{"y \textasciitilde{} x"}\NormalTok{, }\StringTok{"x \textasciitilde{} y"}\NormalTok{),}
+  \AttributeTok{t\_stat     =} \FunctionTok{c}\NormalTok{(}\FunctionTok{as.numeric}\NormalTok{(t\_yx\_int), }\FunctionTok{as.numeric}\NormalTok{(t\_xy\_int))}
+\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+##   regression  t_stat
+## 1      y ~ x 18.5556
+## 2      x ~ y 18.5556
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{isTRUE}\NormalTok{(}\FunctionTok{all.equal}\NormalTok{(}\FunctionTok{as.numeric}\NormalTok{(t\_yx\_int), }\FunctionTok{as.numeric}\NormalTok{(t\_xy\_int)))}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## [1] TRUE
+\end{verbatim}
+
+The final line should again evaluate to \texttt{TRUE}. This is not a
+coincidence special to regression through the origin: for simple linear
+regression \textbf{with} an intercept, it is a standard result that the
+\(t\)-statistic for testing \(H_0 : \beta_1 = 0\) satisfies
+
+\[
+t^2 = \frac{(n-2)\, r_{xy}^2}{1 - r_{xy}^2},
+\]
+
+where \(r_{xy}\) is the sample correlation between \(x\) and \(y\).
+Because correlation is symmetric (\(r_{xy} = r_{yx}\)), this expression
+is identical whether we regress \(y\) on \(x\) or \(x\) on \(y\) --- so
+the two regressions must again produce the same \(t\)-statistic, exactly
+as the R output above confirms.
+
+\newpage
+
+\end{document}
