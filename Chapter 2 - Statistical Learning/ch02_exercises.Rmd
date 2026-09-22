@@ -1,0 +1,279 @@
+---
+output:
+  pdf_document:
+    keep_tex: true
+    number_sections: true
+header-includes:
+  - \usepackage{amsmath}
+  - \input{../_common/preamble.tex}
+fontsize: 11pt
+geometry: margin=1in
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE, fig.align = "center")
+```
+
+```{=latex}
+\makecoverpage{Chapter 2 --- Statistical Learning \\ Exercises 1 and 10}
+```
+
+# Exercise 1 — Flexible vs. Inflexible Methods
+
+For every part below, the comparison comes down to one identity: the expected
+test mean squared error (MSE) at a new point $x_0$ decomposes as
+
+$$
+E\Big[(y_0 - \hat{f}(x_0))^2\Big] = \text{Var}\big(\hat{f}(x_0)\big) + \big[\text{Bias}\big(\hat{f}(x_0)\big)\big]^2 + \text{Var}(\epsilon)
+$$
+
+A **flexible** method (e.g. splines, high-degree polynomials, kNN with small
+$k$) can bend to follow intricate patterns in the training data, so it tends
+to have **low bias** but **high variance** — it changes a lot if you swap in
+a different training sample. An **inflexible** method (e.g. linear
+regression) is the opposite: it can't bend much, so it has **higher bias**
+but **low variance** — it barely changes from one training sample to the
+next. Every part of this question is really asking: *in this scenario, does
+reducing bias (going flexible) buy you more than the variance it costs?*
+
+## (a) $n$ extremely large, $p$ small
+
+**Better: flexible.**
+
+Think of it like sketching a coastline. With only a handful of GPS points (small
+$n$), you can only draw a straight or gently curved line — try to trace every
+inlet and you'll just be connecting noise. But hand a cartographer thousands
+of closely-spaced points (large $n$), and tracing every inlet and headland
+becomes not just possible but *more* accurate than forcing a straight line
+through them.
+
+Formally: a large $n$ relative to $p$ means there is enough data to estimate
+a complex $\hat{f}$ **without** the fit becoming unstable — the
+$\text{Var}(\hat{f}(x_0))$ term stays under control even as flexibility goes
+up, because each local region of the predictor space is still densely
+populated with observations. Meanwhile an inflexible method leaves the bias
+term unnecessarily large when there's no need for it — there's enough data
+to support a far better approximation of the true $f$. So the bias reduction
+from flexibility comes almost for free.
+
+## (b) $p$ extremely large, $n$ small
+
+**Better: inflexible.**
+
+This is the mirror image of (a), and it's the classic *curse of
+dimensionality*: imagine trying to furnish a house (small $n$ = few pieces of
+furniture) that keeps gaining extra rooms (large $p$ = more predictors).
+Spread thin across so many rooms, the house starts to look empty no matter
+how you arrange things — there just isn't enough "stuff" to fill the space
+convincingly.
+
+Formally: with few observations spread across a high-dimensional predictor
+space, each region of that space is sparsely populated. A flexible method
+will latch onto whatever idiosyncratic pattern happens to exist among those
+few points — $\text{Var}(\hat{f}(x_0))$ explodes — and that variance
+inflation outweighs any bias it saves. An inflexible method, constrained to a
+simple global shape, can't overfit the sparse data in the same way, so it
+generalizes better despite its higher bias.
+
+## (c) Relationship between predictors and response is highly non-linear
+
+**Better: flexible.**
+
+Picture trying to trace a winding mountain road using only straight
+segments of highway — you'll cut every corner, and the further the road
+curves, the worse your straight-line approximation gets. A flexible method
+is the one willing to bend with the road.
+
+Formally: if the true $f$ is highly non-linear, an inflexible method like
+linear regression has a *structural* limitation — no matter how much data
+you give it, it cannot represent the curvature, so
+$\big[\text{Bias}\big(\hat{f}(x_0)\big)\big]^2$ stays large regardless of
+$n$. A flexible method can actually approximate the curvature, driving bias
+down. As long as $n$ is reasonably sized, the resulting increase in variance
+is smaller than the bias it eliminates, so total expected test MSE drops.
+
+## (d) Variance of the error terms $\sigma^2 = \text{Var}(\epsilon)$ is extremely high
+
+**Better: inflexible.**
+
+Think of trying to hear a friend's voice (the true signal $f$) over a
+room full of loud static (the irreducible noise $\epsilon$). Leaning in and
+straining to catch every fluctuation in the sound (a flexible method) mostly
+means you start "hearing" patterns in the static itself, not the voice. You're
+better off just catching the general gist.
+
+Formally: $\text{Var}(\epsilon)$ is **irreducible** — it sits in the MSE
+decomposition as a constant floor that *no* method, however flexible, can
+lower. A flexible method doesn't just fail to reduce it — it actively makes
+things worse, because it will interpret large random fluctuations in the
+training data as if they were real signal and fit to them, inflating
+$\text{Var}(\hat{f}(x_0))$ on top of the noise floor that was already there.
+An inflexible method resists chasing that noise, so its total expected test
+MSE stays closer to the irreducible floor.
+
+\newpage
+
+# Exercise 10 — The `Boston` Housing Data Set
+
+```{r load-data}
+library(ISLR2)
+data(Boston)
+```
+
+## (a) Rows, columns, and what they represent
+
+```{r dim-boston}
+dim(Boston)
+```
+
+The data set has **506 rows and 13 columns**. Each **row** is a single
+census tract (a small geographic subdivision) in the Boston area. Each
+**column** is a variable recorded for that tract — for example `crim` (per
+capita crime rate), `rm` (average rooms per dwelling), `ptratio`
+(pupil-teacher ratio), and `medv` (median value of owner-occupied homes in
+\$1000s), among others. So this is not 506 individual houses — it's 506
+neighborhoods, each summarized by 13 socioeconomic and structural
+statistics.
+
+## (b) Pairwise scatterplots
+
+```{r pairs-plot, fig.width=9, fig.height=9}
+pairs(Boston, pch = 20, cex = 0.4)
+```
+
+A full $13\times13$ grid is dense, so it helps to know what to look for
+rather than eyeball all 78 panels equally. A few patterns stand out
+visually and are confirmed by the correlations pulled out in part (c)
+below:
+
+- **`lstat` vs. `medv`**: a clear negative, curved (not perfectly linear)
+  relationship — tracts with a higher share of lower-status population
+  have systematically lower home values.
+- **`rm` vs. `medv`**: a positive relationship — more rooms per dwelling
+  tends to mean higher home value, which makes intuitive sense (bigger
+  houses cost more).
+- **`nox` vs. `indus`** and **`nox` vs. `age`**: positive relationships —
+  tracts with more industrial land use, and with older housing stock, tend
+  to have higher nitrogen oxide pollution.
+- **`tax` vs. `rad`**: a striking pattern where many tracts cluster at one
+  very high value of `rad` (the accessibility-to-highways index) paired
+  with a high, fairly constant `tax` rate — visible as a dense vertical/
+  horizontal band rather than a smooth trend.
+- **`dis` vs. `nox`, `age`, `indus`**: negative relationships — tracts
+  farther from Boston's employment centers tend to be less industrial,
+  have newer housing, and lower pollution (consistent with them being
+  more suburban).
+
+## (c) Predictors associated with per-capita crime rate
+
+```{r crim-corr}
+sort(cor(Boston)[, "crim"])
+```
+
+Yes — several predictors show a meaningful relationship with `crim`:
+
+- **`rad`** (r $\approx$ 0.63) and **`tax`** (r $\approx$ 0.58) are the
+  strongest — tracts with better highway accessibility and higher property
+  tax rates tend to have notably higher crime rates. This is really one
+  pattern more than two, since `rad` and `tax` are themselves highly
+  correlated (visible as that dense cluster in part (b)) — a small subset
+  of tracts with maxed-out `rad` and `tax` values are dragging crime up
+  with them.
+- **`lstat`** (r $\approx$ 0.46) and **`nox`** (r $\approx$ 0.42) are
+  moderately positively associated — tracts with more lower-status
+  population and more air pollution tend to have higher crime.
+- **`medv`** (r $\approx$ -0.39) and **`dis`** (r $\approx$ -0.38) are
+  moderately negatively associated — higher home values and greater
+  distance from employment centers both correspond to lower crime.
+
+Note these are all linear (Pearson) correlations; the true relationships
+may well be non-linear, so these numbers indicate *association*, not
+necessarily the full shape of the relationship.
+
+## (d) Notably high crime, tax, or pupil-teacher tracts; ranges
+
+```{r ranges}
+sapply(Boston[, c("crim", "tax", "ptratio")], range)
+sapply(Boston[, c("crim", "tax", "ptratio")], summary)
+```
+
+- **`crim`** ranges from **0.006 to 88.98** — an enormous spread. The
+  median tract has a crime rate near 0.26, so a handful of tracts (crime
+  rate in the 40s–80s) are extreme outliers pulling the mean well above
+  the median — most tracts are low-crime, with a small number of very
+  high-crime tracts.
+- **`tax`** ranges from **187 to 711** (per \$10,000 of property value).
+  There's a visible cluster of tracts sitting right at the maximum (666),
+  the same cluster seen in the `tax`–`rad` pattern from part (b) — so while
+  the *range* is wide, a meaningful subgroup of tracts is bunched at the
+  top of it.
+- **`ptratio`** ranges from **12.6 to 22.0** — a comparatively narrow
+  spread on an absolute scale, though a pupil-teacher ratio of 22 vs. 12.6
+  is still a substantively large difference in school resourcing per
+  student.
+
+## (e) Tracts bounding the Charles River
+
+```{r chas-sum}
+sum(Boston$chas)
+```
+
+**35** of the 506 census tracts bound the Charles River (`chas == 1`).
+
+## (f) Median pupil-teacher ratio
+
+```{r ptratio-median}
+median(Boston$ptratio)
+```
+
+The median pupil-teacher ratio across tracts is **19.05**.
+
+## (g) Tract with the lowest median home value
+
+```{r min-medv}
+which.min(Boston$medv)
+Boston[which.min(Boston$medv), ]
+```
+
+Tract **399** has the lowest `medv` at **\$5,000** — far below the data
+set's minimum-to-typical range (the next visualization makes the point
+concretely: this tract sits at the very bottom of the `medv` distribution
+while most other predictors sit near the *top* of their own ranges).
+
+```{r min-medv-percentile}
+idx <- which.min(Boston$medv)
+sapply(names(Boston), function(v) round(100 * mean(Boston[[v]] <= Boston[idx, v]), 1))
+```
+
+Interpreting these as percentile ranks within the full data set, tract 399
+is a striking outlier profile: it sits at the **100th percentile for
+`age`** (essentially all owner-occupied units built before 1940) and
+**`rad`** (maximum highway accessibility), the **99th percentile for
+`tax`**, the **98.8th percentile for `crim`**, and the **97.8th percentile
+for `lstat`** — while its `rm` (rooms per dwelling) is only at the 7.7th
+percentile and its `dis` (distance to employment centers) at the 5.7th
+percentile. In short: old housing stock, very high crime and tax burden,
+small homes, low-status population, and close to the urban core — a
+textbook combination for depressed home values, and consistent with the
+associations found in part (c).
+
+## (h) Tracts averaging more than seven / eight rooms
+
+```{r rooms}
+sum(Boston$rm > 7)
+sum(Boston$rm > 8)
+summary(Boston[Boston$rm > 8, ])
+```
+
+**64** tracts average more than seven rooms per dwelling, and **13** average
+more than eight.
+
+The 13 tracts with `rm > 8` are a notably *advantaged* subset compared to
+the data set as a whole: their median `crim` ($\approx$ 0.52) and `lstat`
+($\approx$ 4.14) are both far below the full data set's medians, and their
+median `medv` (\$48,300) sits near the top of the overall home-value range
+(recall the overall `medv` maximum is \$50,000, likely censored at that
+value). In other words, large-home tracts tend to combine low crime, low
+lower-status population share, and high home values — consistent with the
+negative `lstat`–`medv` and positive `rm`–`medv` relationships seen in part
+(b).
