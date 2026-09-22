@@ -5,7 +5,7 @@ output:
     number_sections: true
 header-includes:
   - \usepackage{amsmath}
-  - \input{../_common/preamble.tex}
+  - \input{../../_common/preamble.tex}
 fontsize: 11pt
 geometry: margin=1in
 ---
