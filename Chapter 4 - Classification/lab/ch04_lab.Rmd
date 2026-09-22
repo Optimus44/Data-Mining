@@ -1,0 +1,379 @@
+---
+output:
+  pdf_document:
+    keep_tex: true
+    number_sections: true
+header-includes:
+  - \usepackage{amsmath}
+  - \input{../../_common/preamble.tex}
+fontsize: 11pt
+geometry: margin=1in
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE, fig.align = "center")
+```
+
+```{=latex}
+\makecoverpage{Chapter 4 --- Classification \\ Lab}
+```
+
+# Introduction
+
+Linear regression predicts a *quantitative* response. But plenty of
+interesting questions have a *qualitative* answer instead — will the
+market go up or down today, will a customer buy the product or not, does
+this email look like spam. This lab works through the main tools for that
+kind of problem: logistic regression, linear and quadratic discriminant
+analysis (LDA/QDA), naive Bayes, and $K$-nearest neighbors, applied to
+three real data sets — daily S&P 500 returns, caravan insurance purchases,
+and hourly bike-share demand.
+
+```{r libraries}
+library(ISLR2)
+library(MASS)
+library(class)
+library(e1071)
+```
+
+# The Stock Market Data
+
+`Smarket` records the percentage return of the S&P 500 on 1,250 trading
+days (2001–2005), along with the previous five days' returns (`Lag1`
+through `Lag5`), trading `Volume`, and `Direction` — whether the market
+went `Up` or `Down` that day. The question we're chasing: can *yesterday's*
+(and the last few days') returns predict *today's* direction at all?
+
+```{r smarket-explore}
+dim(Smarket)
+summary(Smarket)
+cor(Smarket[, -9])
+```
+
+The correlations between the lag variables and `Today`'s return all sit
+close to zero — there's essentially no linear relationship between recent
+past returns and today's. That's actually the expected, textbook result
+for daily stock returns (a market that were linearly predictable from its
+own recent past would be an unusually exploitable one). The only sizable
+correlation in the table is between `Year` and `Volume` — unsurprising,
+since trading volume trended upward over these five years:
+
+```{r volume-plot, fig.width=6, fig.height=4}
+plot(Smarket$Volume, xlab = "Chronological index", ylab = "Volume",
+     main = "Trading volume increases over 2001-2005")
+```
+
+# Logistic Regression
+
+Since `Direction` is binary, `lm()` isn't the right tool — nothing stops a
+linear model from predicting a probability below 0 or above 1. Logistic
+regression instead models the probability itself through the *logistic
+function*, which is mathematically guaranteed to stay in $(0,1)$ no matter
+what the predictors are:
+
+$$
+p(X) = P(\text{Direction = Up} \mid X) = \frac{e^{\beta_0 + \beta_1 X_1 + \cdots + \beta_p X_p}}{1 + e^{\beta_0 + \beta_1 X_1 + \cdots + \beta_p X_p}}
+$$
+
+Rearranging shows *why* it's called "logistic" — it's linear not in the
+probability itself, but in the **log-odds**:
+
+$$
+\log\left(\frac{p(X)}{1 - p(X)}\right) = \beta_0 + \beta_1 X_1 + \cdots + \beta_p X_p
+$$
+
+So a coefficient $\beta_j$ is read as: a one-unit increase in $X_j$
+changes the log-odds of `Up` by $\beta_j$, holding everything else fixed —
+not a direct change in probability, since the logistic curve is flattest
+at the extremes and steepest near $p=0.5$.
+
+```{r logistic-fit}
+glm.fits <- glm(
+  Direction ~ Lag1 + Lag2 + Lag3 + Lag4 + Lag5 + Volume,
+  data = Smarket, family = binomial
+)
+summary(glm.fits)
+```
+
+None of the p-values are small — by itself, this is a first sign that
+yesterday's returns don't carry much predictive signal for today's
+direction, consistent with what the correlation matrix already suggested.
+`Lag1` has the smallest p-value ($\approx 0.145$) with a *negative*
+coefficient, which would (weakly) suggest that a positive return
+yesterday makes a positive return today slightly less likely — but nowhere
+near significant on its own.
+
+## Confusion matrix and training accuracy
+
+```{r logistic-confusion}
+glm.probs <- predict(glm.fits, type = "response")
+glm.pred <- rep("Down", nrow(Smarket))
+glm.pred[glm.probs > 0.5] <- "Up"
+
+table(glm.pred, Smarket$Direction)
+mean(glm.pred == Smarket$Direction)
+```
+
+About 52% correct — barely better than a coin flip, and misleadingly so:
+this is **training** accuracy, computed on the exact data the model was
+fit to. A model that just memorizes noise in the training set can look
+fine here and still fail on new data — which is exactly why we need a
+genuine held-out test set.
+
+## A real train/test split
+
+We use the classic "hold out the future" split for time series data:
+train on 2001–2004, and test on 2005 — data the model has never seen.
+
+```{r logistic-holdout}
+train <- Smarket$Year < 2005
+Smarket.2005 <- Smarket[!train, ]
+Direction.2005 <- Smarket$Direction[!train]
+dim(Smarket.2005)
+
+glm.fits <- glm(
+  Direction ~ Lag1 + Lag2 + Lag3 + Lag4 + Lag5 + Volume,
+  data = Smarket, family = binomial, subset = train
+)
+glm.probs <- predict(glm.fits, Smarket.2005, type = "response")
+glm.pred <- rep("Down", nrow(Smarket.2005))
+glm.pred[glm.probs > 0.5] <- "Up"
+
+table(glm.pred, Direction.2005)
+mean(glm.pred == Direction.2005)
+```
+
+Test accuracy is *worse* than training accuracy here — actually worse
+than just always guessing `Up`, which is a sign the full five-lag model is
+overfitting noise rather than finding real signal. Since `Lag1` and
+`Lag2` were the two most promising predictors above, it's worth trying a
+leaner model:
+
+```{r logistic-lean}
+glm.fits <- glm(Direction ~ Lag1 + Lag2, data = Smarket,
+                 family = binomial, subset = train)
+glm.probs <- predict(glm.fits, Smarket.2005, type = "response")
+glm.pred <- rep("Down", nrow(Smarket.2005))
+glm.pred[glm.probs > 0.5] <- "Up"
+
+table(glm.pred, Direction.2005)
+mean(glm.pred == Direction.2005)
+```
+
+That's a meaningful improvement — dropping the three weakest predictors
+actually helped test performance, a concrete illustration of the
+bias-variance idea from Chapter 2: a model with fewer, better-chosen
+predictors can generalize better than one that includes everything,
+even though it necessarily has strictly worse (or equal) training fit.
+
+# Linear Discriminant Analysis
+
+Logistic regression models $P(Y \mid X)$ directly. LDA takes the opposite
+route — Bayes' theorem in reverse — modeling how $X$ is distributed
+*within* each class, then using Bayes' rule to get back to $P(Y \mid X)$:
+
+$$
+P(Y = k \mid X = x) = \frac{\pi_k \, f_k(x)}{\sum_{l} \pi_l \, f_l(x)}
+$$
+
+where $\pi_k$ is the (estimated) prior probability of class $k$, and
+$f_k(x)$ is the density of $X$ within class $k$. LDA's specific assumption
+is that each class's predictors follow a Gaussian distribution, all
+sharing the *same* covariance structure — only the class means differ.
+Under that assumption the decision boundary between classes works out to
+be linear, which is where LDA gets its name.
+
+```{r lda-fit}
+lda.fit <- lda(Direction ~ Lag1 + Lag2, data = Smarket, subset = train)
+lda.fit
+```
+
+The **prior probabilities** ($\hat\pi_{\text{Down}} \approx 0.492$,
+$\hat\pi_{\text{Up}} \approx 0.508$) are just the class proportions in the
+training data. The **group means** show that on `Up` days, `Lag1` and
+`Lag2` tend to be slightly negative on average — consistent with the
+(weak) negative association logistic regression also picked up.
+
+```{r lda-predict}
+lda.pred <- predict(lda.fit, Smarket.2005)
+table(lda.pred$class, Direction.2005)
+mean(lda.pred$class == Direction.2005)
+```
+
+Almost identical accuracy to the leaner logistic regression — not a
+coincidence. With two classes and (roughly) Gaussian, similarly-shaped
+predictors, LDA and logistic regression tend to land on very similar
+decision boundaries, even though they get there through different routes
+(generative vs. discriminative modeling).
+
+# Quadratic Discriminant Analysis
+
+QDA relaxes LDA's shared-covariance assumption — each class gets its
+*own* covariance matrix. That extra flexibility means the decision
+boundary is now quadratic rather than linear, at the cost of estimating
+more parameters (and so needing more data to do it reliably).
+
+```{r qda-fit}
+qda.fit <- qda(Direction ~ Lag1 + Lag2, data = Smarket, subset = train)
+qda.fit
+
+qda.class <- predict(qda.fit, Smarket.2005)$class
+table(qda.class, Direction.2005)
+mean(qda.class == Direction.2005)
+```
+
+QDA edges out both logistic regression and LDA here. One reading: the
+true boundary between `Up` and `Down` days may genuinely be closer to
+quadratic than linear — but with only two predictors and a few hundred
+test observations, this could also just be QDA getting fortunate on this
+particular test split rather than a guaranteed generalizable edge.
+
+# Naive Bayes
+
+Naive Bayes keeps the same generative Bayes'-rule structure as LDA/QDA,
+but replaces the Gaussian-with-shared/class-specific-covariance assumption
+with something blunter and computationally cheaper: it assumes every
+predictor is **independent of every other predictor, within each class**.
+
+$$
+f_k(x) = f_{k1}(x_1) \times f_{k2}(x_2) \times \cdots \times f_{kp}(x_p)
+$$
+
+This is rarely *exactly* true — `Lag1` and `Lag2` are unlikely to be truly
+independent given `Direction` — but it collapses a hard multivariate
+density-estimation problem into $p$ easy univariate ones, and in practice
+often still classifies well even when the independence assumption is
+technically wrong.
+
+```{r naive-bayes}
+nb.fit <- naiveBayes(Direction ~ Lag1 + Lag2, data = Smarket, subset = train)
+nb.fit
+
+nb.class <- predict(nb.fit, Smarket.2005)
+table(nb.class, Direction.2005)
+mean(nb.class == Direction.2005)
+```
+
+Performance here lands close to LDA and logistic regression — reasonable,
+since with only two predictors there's less room for the independence
+assumption to cause real damage than there would be with many correlated
+predictors.
+
+# $K$-Nearest Neighbors
+
+Every method so far assumes some parametric form for how `Direction`
+depends on the predictors (a linear log-odds, a Gaussian density, ...).
+KNN assumes nothing about the shape of the boundary at all: to classify a
+new point, find its $K$ nearest neighbors in the training data (by
+Euclidean distance) and take a majority vote among them.
+
+```{r knn-smarket}
+train.X <- cbind(Smarket$Lag1, Smarket$Lag2)[train, ]
+test.X <- cbind(Smarket$Lag1, Smarket$Lag2)[!train, ]
+train.Direction <- Smarket$Direction[train]
+
+set.seed(1)
+knn.pred <- knn(train.X, test.X, train.Direction, k = 1)
+table(knn.pred, Direction.2005)
+mean(knn.pred == Direction.2005)
+```
+
+$K=1$ is the most flexible possible choice — each test point is classified
+by whichever single training point happens to be closest, which chases
+noise aggressively and shows in the roughly 50% accuracy (no better than
+guessing). Bumping $K$ up trades away some of that flexibility for
+stability:
+
+```{r knn-k3}
+knn.pred <- knn(train.X, test.X, train.Direction, k = 3)
+table(knn.pred, Direction.2005)
+mean(knn.pred == Direction.2005)
+```
+
+A modest improvement, but still well short of QDA. Altogether, across
+every method tried, `Lag1`/`Lag2` simply don't carry much signal about
+`Direction` — which, again, is the expected finding for daily stock
+returns, not a failure of the methods themselves.
+
+## Application: Caravan Insurance
+
+`Caravan` is a more favorable setting for KNN: 5,822 customers, 85
+demographic predictors, and a binary `Purchase` outcome (did they buy
+caravan insurance). Because KNN measures raw Euclidean distance, any
+predictor on a larger numeric scale automatically dominates the distance
+calculation regardless of how informative it actually is — so predictors
+need to be standardized first:
+
+```{r caravan-scale}
+standardized.X <- scale(Caravan[, -86])
+mean(Caravan[[1]]); mean(Caravan[[2]])
+var(standardized.X[, 1]); var(standardized.X[, 2])
+```
+
+After scaling, every predictor has variance 1, so no single variable can
+dominate the distance metric purely because of its units.
+
+```{r caravan-knn}
+test <- 1:1000
+train.X <- standardized.X[-test, ]
+test.X <- standardized.X[test, ]
+train.Y <- Caravan$Purchase[-test]
+test.Y <- Caravan$Purchase[test]
+
+set.seed(1)
+knn.pred <- knn(train.X, test.X, train.Y, k = 3)
+table(knn.pred, test.Y)
+```
+
+Only about 6% of customers actually purchase, so overall accuracy is a
+misleading metric here — a model that always predicts "No" would already
+be right about 94% of the time. What actually matters for a marketing
+campaign is *precision among predicted buyers*: of the customers KNN
+flagged as likely purchasers, what fraction really did buy? That's a
+meaningfully higher hit rate than the 6% baseline rate, which is the
+actual value of the model — it concentrates marketing spend on
+customers substantially more likely to convert than a random customer
+would be.
+
+# Poisson Regression
+
+`Bikeshare` records hourly bike rental counts (`bikers`) along with
+weather and calendar predictors. A count that's always $\geq 0$ and often
+small doesn't fit the assumptions of ordinary linear regression well — a
+linear model can happily predict a negative number of bike rentals, which
+is nonsensical. Poisson regression is built for exactly this: it assumes
+$Y \mid X \sim \text{Poisson}(\lambda(X))$, and — just like logistic
+regression links probability through the logistic function — links the
+rate $\lambda$ through a **log** link, guaranteeing predictions stay
+positive:
+
+$$
+\log(\lambda(X)) = \beta_0 + \beta_1 X_1 + \cdots + \beta_p X_p
+\qquad \Longleftrightarrow \qquad
+\lambda(X) = e^{\beta_0 + \beta_1 X_1 + \cdots + \beta_p X_p}
+$$
+
+A coefficient $\beta_j$ is therefore read multiplicatively: a one-unit
+increase in $X_j$ multiplies the expected count by $e^{\beta_j}$, holding
+other predictors fixed.
+
+```{r poisson-fit}
+mod.pois <- glm(
+  bikers ~ mnth + hr + workingday + temp + weathersit,
+  data = Bikeshare, family = poisson
+)
+summary(mod.pois)
+```
+
+```{r poisson-hourly, fig.width=7, fig.height=4}
+coef.hr <- c(0, coef(mod.pois)[grepl("^hr", names(coef(mod.pois)))])
+plot(0:23, coef.hr, type = "l", pch = 19, col = "steelblue", lwd = 2,
+     xlab = "Hour of the day", ylab = "Coefficient (log rental rate)",
+     main = "Bikeshare demand by hour, holding other predictors fixed")
+```
+
+The hourly coefficients trace out the expected daily commuting rhythm —
+sharp peaks around the morning and evening rush hours, with a trough
+overnight — which a positive-count model like this one can represent
+naturally, in a way a plain linear regression fit to the raw counts
+would not.
