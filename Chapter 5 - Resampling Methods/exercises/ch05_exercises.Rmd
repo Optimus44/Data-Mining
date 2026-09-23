@@ -1,0 +1,244 @@
+---
+output:
+  pdf_document:
+    keep_tex: true
+    number_sections: true
+header-includes:
+  - \usepackage{amsmath}
+  - \input{../../_common/preamble.tex}
+fontsize: 11pt
+geometry: margin=1in
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE, fig.align = "center")
+```
+
+```{=latex}
+\makecoverpage{Chapter 5 --- Resampling Methods \\ Exercises 5 and 9}
+```
+
+```{r libraries}
+library(ISLR2)
+library(boot)
+```
+
+# Exercise 5 — Validation-Set Error for Logistic Regression on `Default`
+
+## (a) Fit the full-data logistic regression
+
+```{r ex5-full-fit}
+set.seed(1)
+glm.fit <- glm(default ~ income + balance, data = Default, family = binomial)
+summary(glm.fit)
+```
+
+Both `income` and `balance` come out highly significant, with `balance`
+the far stronger predictor by t-statistic magnitude — consistent with what
+Chapter 4 found for this same relationship.
+
+## (b) Validation-set test error
+
+The validation-set approach is conceptually simple: split the data in
+half, fit only on one half, and check performance on the half the model
+never saw — the resulting error rate is a genuine estimate of test error,
+unlike the training error computed on data the model already fit.
+
+```{r ex5-validation}
+set.seed(1)
+n <- nrow(Default)
+train <- sample(n, n / 2)
+
+glm.fit <- glm(default ~ income + balance, data = Default,
+                family = binomial, subset = train)
+glm.probs <- predict(glm.fit, Default[-train, ], type = "response")
+glm.pred <- ifelse(glm.probs > 0.5, "Yes", "No")
+
+val.error <- mean(glm.pred != Default[-train, ]$default)
+val.error
+```
+
+A validation error around 2.5% — notably higher than the essentially-zero
+training error a full-data fit could give the illusion of, since 5,000
+held-out observations never influenced the fitted coefficients at all.
+
+## (c) Repeating with three different splits
+
+```{r ex5-repeat}
+val_error <- function(seed) {
+  set.seed(seed)
+  train <- sample(n, n / 2)
+  fit <- glm(default ~ income + balance, data = Default,
+             family = binomial, subset = train)
+  probs <- predict(fit, Default[-train, ], type = "response")
+  pred <- ifelse(probs > 0.5, "Yes", "No")
+  mean(pred != Default[-train, ]$default)
+}
+
+errors <- sapply(c(1, 2, 3), val_error)
+errors
+```
+
+The three error rates all land in a fairly tight band (roughly 2.4%–2.6%),
+but they're not identical — which is the point. Every one of these
+numbers is a valid estimate of the same underlying test error, yet each
+depends on the arbitrary luck of which 5,000 observations happened to
+land in the training half. That split-to-split variability is exactly the
+validation set approach's core weakness: throwing away half the data for
+training, on a single random split, means both the fitted model and the
+resulting error estimate are noisier than they'd need to be with a method
+like $k$-fold cross-validation that reuses the data more efficiently.
+
+## (d) Adding a `student` dummy variable
+
+```{r ex5-student}
+set.seed(1)
+train <- sample(n, n / 2)
+glm.fit.student <- glm(default ~ income + balance + student, data = Default,
+                        family = binomial, subset = train)
+glm.probs <- predict(glm.fit.student, Default[-train, ], type = "response")
+glm.pred <- ifelse(glm.probs > 0.5, "Yes", "No")
+
+val.error.student <- mean(glm.pred != Default[-train, ]$default)
+val.error.student
+```
+
+With the same seed (and so the same train/test split) as (b), adding
+`student` gives a validation error of `r round(val.error.student, 4)`,
+essentially identical to — in this run, marginally *higher* than —
+`r round(val.error, 4)` without it. So there's no evidence here that
+including `student` improves predictive performance. This isn't
+surprising in hindsight: `student` is strongly correlated with `balance`
+(students tend to carry different balances than non-students), so much of
+whatever information `student` carries about default risk is already
+captured once `balance` is in the model — adding it doesn't give logistic
+regression much new signal to work with, only extra estimation noise.
+
+\newpage
+
+# Exercise 9 — Bootstrap Estimates for the `Boston` Data
+
+Every part below is about the same core idea: `medv` (or a statistic of
+it) is being estimated from one particular sample of 506 census tracts,
+and we want to know how much that estimate would bounce around if we
+happened to have drawn a different sample of the same size from the same
+population. Textbook formulas exist for some statistics (the sample
+mean); the bootstrap gives us an answer even for the ones that don't (the
+median, a percentile) by treating our one sample as a stand-in for the
+population and resampling from it directly.
+
+## (a) Estimate of the population mean, $\hat\mu$
+
+```{r ex9-mu}
+Boston2 <- ISLR2::Boston
+mu.hat <- mean(Boston2$medv)
+mu.hat
+```
+
+## (b) Standard error of $\hat\mu$, by formula
+
+$$
+\text{SE}(\hat\mu) = \frac{s}{\sqrt{n}}
+$$
+
+where $s$ is the sample standard deviation of `medv` and $n = 506$.
+
+```{r ex9-se-formula}
+se.formula <- sd(Boston2$medv) / sqrt(nrow(Boston2))
+se.formula
+```
+
+This measures how much $\hat\mu$ would be expected to vary, on average,
+across repeated samples of 506 tracts drawn from the same population —
+about \$409 (recall `medv` is in \$1000s), against a mean around \$22,530.
+
+## (c) Standard error of $\hat\mu$, by bootstrap
+
+```{r ex9-boot-mean}
+set.seed(1)
+boot.fn.mean <- function(data, index) mean(data[index])
+boot.mean <- boot(Boston2$medv, boot.fn.mean, R = 10000)
+boot.mean
+```
+
+The bootstrap standard error (`r round(sd(boot.mean$t), 4)`) comes out
+essentially identical to the formula-based estimate in (b)
+(`r round(se.formula, 4)`) — reassuring, since for something as
+well-behaved as a sample mean, the classical formula is already exact
+asymptotically. The bootstrap isn't doing anything the formula couldn't
+already do here; its real value shows up in (f) and (h), for statistics
+that have no comparably simple formula at all.
+
+## (d) 95% confidence interval for the mean, via bootstrap
+
+Using the approximation given in the exercise, $[\hat\mu - 2\,\text{SE}(\hat\mu),\ \hat\mu + 2\,\text{SE}(\hat\mu)]$:
+
+```{r ex9-ci}
+se.boot <- sd(boot.mean$t)
+ci.boot <- c(mu.hat - 2 * se.boot, mu.hat + 2 * se.boot)
+ci.boot
+
+t.test(Boston2$medv)
+```
+
+The bootstrap-based interval (roughly `r round(ci.boot[1],2)` to
+`r round(ci.boot[2],2)`) is nearly indistinguishable from `t.test()`'s
+interval — expected, since both are really estimating the same quantity
+($\pm 2$ standard errors around the mean is a close approximation to the
+$t$-distribution multiplier `t.test()` uses at $n=506$), just arrived at
+through different machinery: one assumes normal-theory sampling
+distribution math, the other estimates the same spread empirically by
+actually resampling.
+
+## (e) Estimate of the population median
+
+```{r ex9-median}
+med.hat <- median(Boston2$medv)
+med.hat
+```
+
+## (f) Standard error of the median, via bootstrap
+
+There is no simple closed-form formula for the standard error of a
+sample median (unlike the mean, in (b)) — this is precisely the situation
+the bootstrap is built for.
+
+```{r ex9-boot-median}
+set.seed(1)
+boot.fn.median <- function(data, index) median(data[index])
+boot.median <- boot(Boston2$medv, boot.fn.median, R = 10000)
+boot.median
+```
+
+The estimated standard error (`r round(sd(boot.median$t), 4)`) is
+somewhat *smaller* than the mean's standard error from (c) — the median
+is less sensitive than the mean to the handful of very high-`medv`
+tracts (recall `medv` appears capped at \$50,000 in this data), so it
+varies a bit less across resamples.
+
+## (g) Estimate of the 10th percentile
+
+```{r ex9-q10}
+mu.hat.01 <- quantile(Boston2$medv, 0.1)
+mu.hat.01
+```
+
+## (h) Standard error of the 10th percentile, via bootstrap
+
+```{r ex9-boot-q10}
+set.seed(1)
+boot.fn.q10 <- function(data, index) quantile(data[index], 0.1)
+boot.q10 <- boot(Boston2$medv, boot.fn.q10, R = 10000)
+boot.q10
+```
+
+The standard error here (`r round(sd(boot.q10$t), 4)`) is the largest of
+the three statistics examined — larger than both the mean's and the
+median's. This tracks with intuition: the 10th percentile is estimated
+from comparatively few, more extreme observations in the lower tail of
+`medv`, so there's inherently less data locally supporting that estimate
+than there is supporting the mean or median, which draw on the full
+distribution. This is exactly the kind of finding the bootstrap makes
+practical to obtain — no standard formula for the standard error of a
+percentile exists at all, yet the same resampling procedure that worked
+for the mean and median hands us an answer here just as directly.

@@ -1,0 +1,504 @@
+% Options for packages loaded elsewhere
+\PassOptionsToPackage{unicode}{hyperref}
+\PassOptionsToPackage{hyphens}{url}
+\documentclass[
+  11pt,
+]{article}
+\usepackage{xcolor}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb}
+\setcounter{secnumdepth}{5}
+\usepackage{iftex}
+\ifPDFTeX
+  \usepackage[T1]{fontenc}
+  \usepackage[utf8]{inputenc}
+  \usepackage{textcomp} % provide euro and other symbols
+\else % if luatex or xetex
+  \usepackage{unicode-math} % this also loads fontspec
+  \defaultfontfeatures{Scale=MatchLowercase}
+  \defaultfontfeatures[\rmfamily]{Ligatures=TeX,Scale=1}
+\fi
+\usepackage{lmodern}
+\ifPDFTeX\else
+  % xetex/luatex font selection
+\fi
+% Use upquote if available, for straight quotes in verbatim environments
+\IfFileExists{upquote.sty}{\usepackage{upquote}}{}
+\IfFileExists{microtype.sty}{% use microtype if available
+  \usepackage[]{microtype}
+  \UseMicrotypeSet[protrusion]{basicmath} % disable protrusion for tt fonts
+}{}
+\makeatletter
+\@ifundefined{KOMAClassName}{% if non-KOMA class
+  \IfFileExists{parskip.sty}{%
+    \usepackage{parskip}
+  }{% else
+    \setlength{\parindent}{0pt}
+    \setlength{\parskip}{6pt plus 2pt minus 1pt}}
+}{% if KOMA class
+  \KOMAoptions{parskip=half}}
+\makeatother
+\usepackage{color}
+\usepackage{fancyvrb}
+\newcommand{\VerbBar}{|}
+\newcommand{\VERB}{\Verb[commandchars=\\\{\}]}
+\DefineVerbatimEnvironment{Highlighting}{Verbatim}{commandchars=\\\{\}}
+% Add ',fontsize=\small' for more characters per line
+\usepackage{framed}
+\definecolor{shadecolor}{RGB}{248,248,248}
+\newenvironment{Shaded}{\begin{snugshade}}{\end{snugshade}}
+\newcommand{\AlertTok}[1]{\textcolor[rgb]{0.94,0.16,0.16}{#1}}
+\newcommand{\AnnotationTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
+\newcommand{\AttributeTok}[1]{\textcolor[rgb]{0.13,0.29,0.53}{#1}}
+\newcommand{\BaseNTok}[1]{\textcolor[rgb]{0.00,0.00,0.81}{#1}}
+\newcommand{\BuiltInTok}[1]{#1}
+\newcommand{\CharTok}[1]{\textcolor[rgb]{0.31,0.60,0.02}{#1}}
+\newcommand{\CommentTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textit{#1}}}
+\newcommand{\CommentVarTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
+\newcommand{\ConstantTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{#1}}
+\newcommand{\ControlFlowTok}[1]{\textcolor[rgb]{0.13,0.29,0.53}{\textbf{#1}}}
+\newcommand{\DataTypeTok}[1]{\textcolor[rgb]{0.13,0.29,0.53}{#1}}
+\newcommand{\DecValTok}[1]{\textcolor[rgb]{0.00,0.00,0.81}{#1}}
+\newcommand{\DocumentationTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
+\newcommand{\ErrorTok}[1]{\textcolor[rgb]{0.64,0.00,0.00}{\textbf{#1}}}
+\newcommand{\ExtensionTok}[1]{#1}
+\newcommand{\FloatTok}[1]{\textcolor[rgb]{0.00,0.00,0.81}{#1}}
+\newcommand{\FunctionTok}[1]{\textcolor[rgb]{0.13,0.29,0.53}{\textbf{#1}}}
+\newcommand{\ImportTok}[1]{#1}
+\newcommand{\InformationTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
+\newcommand{\KeywordTok}[1]{\textcolor[rgb]{0.13,0.29,0.53}{\textbf{#1}}}
+\newcommand{\NormalTok}[1]{#1}
+\newcommand{\OperatorTok}[1]{\textcolor[rgb]{0.81,0.36,0.00}{\textbf{#1}}}
+\newcommand{\OtherTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{#1}}
+\newcommand{\PreprocessorTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textit{#1}}}
+\newcommand{\RegionMarkerTok}[1]{#1}
+\newcommand{\SpecialCharTok}[1]{\textcolor[rgb]{0.81,0.36,0.00}{\textbf{#1}}}
+\newcommand{\SpecialStringTok}[1]{\textcolor[rgb]{0.31,0.60,0.02}{#1}}
+\newcommand{\StringTok}[1]{\textcolor[rgb]{0.31,0.60,0.02}{#1}}
+\newcommand{\VariableTok}[1]{\textcolor[rgb]{0.00,0.00,0.00}{#1}}
+\newcommand{\VerbatimStringTok}[1]{\textcolor[rgb]{0.31,0.60,0.02}{#1}}
+\newcommand{\WarningTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
+\usepackage{graphicx}
+\makeatletter
+\newsavebox\pandoc@box
+\newcommand*\pandocbounded[1]{% scales image to fit in text height/width
+  \sbox\pandoc@box{#1}%
+  \Gscale@div\@tempa{\textheight}{\dimexpr\ht\pandoc@box+\dp\pandoc@box\relax}%
+  \Gscale@div\@tempb{\linewidth}{\wd\pandoc@box}%
+  \ifdim\@tempb\p@<\@tempa\p@\let\@tempa\@tempb\fi% select the smaller of both
+  \ifdim\@tempa\p@<\p@\scalebox{\@tempa}{\usebox\pandoc@box}%
+  \else\usebox{\pandoc@box}%
+  \fi%
+}
+% Set default figure placement to htbp
+\def\fps@figure{htbp}
+\makeatother
+\setlength{\emergencystretch}{3em} % prevent overfull lines
+\providecommand{\tightlist}{%
+  \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+\usepackage{amsmath}
+\input{../../_common/preamble.tex}
+\usepackage{bookmark}
+\IfFileExists{xurl.sty}{\usepackage{xurl}}{} % add URL line breaks if available
+\urlstyle{same}
+\hypersetup{
+  hidelinks,
+  pdfcreator={LaTeX via pandoc}}
+
+\author{}
+\date{\vspace{-2.5em}}
+
+\begin{document}
+
+\makecoverpage{Chapter 5 --- Resampling Methods \\ Exercises 5 and 9}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{library}\NormalTok{(ISLR2)}
+\FunctionTok{library}\NormalTok{(boot)}
+\end{Highlighting}
+\end{Shaded}
+
+\section{\texorpdfstring{Exercise 5 --- Validation-Set Error for
+Logistic Regression on
+\texttt{Default}}{Exercise 5 --- Validation-Set Error for Logistic Regression on Default}}\label{exercise-5-validation-set-error-for-logistic-regression-on-default}
+
+\subsection{(a) Fit the full-data logistic
+regression}\label{a-fit-the-full-data-logistic-regression}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{set.seed}\NormalTok{(}\DecValTok{1}\NormalTok{)}
+\NormalTok{glm.fit }\OtherTok{\textless{}{-}} \FunctionTok{glm}\NormalTok{(default }\SpecialCharTok{\textasciitilde{}}\NormalTok{ income }\SpecialCharTok{+}\NormalTok{ balance, }\AttributeTok{data =}\NormalTok{ Default, }\AttributeTok{family =}\NormalTok{ binomial)}
+\FunctionTok{summary}\NormalTok{(glm.fit)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## 
+## Call:
+## glm(formula = default ~ income + balance, family = binomial, 
+##     data = Default)
+## 
+## Coefficients:
+##               Estimate Std. Error z value Pr(>|z|)    
+## (Intercept) -1.154e+01  4.348e-01 -26.545  < 2e-16 ***
+## income       2.081e-05  4.985e-06   4.174 2.99e-05 ***
+## balance      5.647e-03  2.274e-04  24.836  < 2e-16 ***
+## ---
+## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+## 
+## (Dispersion parameter for binomial family taken to be 1)
+## 
+##     Null deviance: 2920.6  on 9999  degrees of freedom
+## Residual deviance: 1579.0  on 9997  degrees of freedom
+## AIC: 1585
+## 
+## Number of Fisher Scoring iterations: 8
+\end{verbatim}
+
+Both \texttt{income} and \texttt{balance} come out highly significant,
+with \texttt{balance} the far stronger predictor by t-statistic
+magnitude --- consistent with what Chapter 4 found for this same
+relationship.
+
+\subsection{(b) Validation-set test
+error}\label{b-validation-set-test-error}
+
+The validation-set approach is conceptually simple: split the data in
+half, fit only on one half, and check performance on the half the model
+never saw --- the resulting error rate is a genuine estimate of test
+error, unlike the training error computed on data the model already fit.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{set.seed}\NormalTok{(}\DecValTok{1}\NormalTok{)}
+\NormalTok{n }\OtherTok{\textless{}{-}} \FunctionTok{nrow}\NormalTok{(Default)}
+\NormalTok{train }\OtherTok{\textless{}{-}} \FunctionTok{sample}\NormalTok{(n, n }\SpecialCharTok{/} \DecValTok{2}\NormalTok{)}
+
+\NormalTok{glm.fit }\OtherTok{\textless{}{-}} \FunctionTok{glm}\NormalTok{(default }\SpecialCharTok{\textasciitilde{}}\NormalTok{ income }\SpecialCharTok{+}\NormalTok{ balance, }\AttributeTok{data =}\NormalTok{ Default,}
+                \AttributeTok{family =}\NormalTok{ binomial, }\AttributeTok{subset =}\NormalTok{ train)}
+\NormalTok{glm.probs }\OtherTok{\textless{}{-}} \FunctionTok{predict}\NormalTok{(glm.fit, Default[}\SpecialCharTok{{-}}\NormalTok{train, ], }\AttributeTok{type =} \StringTok{"response"}\NormalTok{)}
+\NormalTok{glm.pred }\OtherTok{\textless{}{-}} \FunctionTok{ifelse}\NormalTok{(glm.probs }\SpecialCharTok{\textgreater{}} \FloatTok{0.5}\NormalTok{, }\StringTok{"Yes"}\NormalTok{, }\StringTok{"No"}\NormalTok{)}
+
+\NormalTok{val.error }\OtherTok{\textless{}{-}} \FunctionTok{mean}\NormalTok{(glm.pred }\SpecialCharTok{!=}\NormalTok{ Default[}\SpecialCharTok{{-}}\NormalTok{train, ]}\SpecialCharTok{$}\NormalTok{default)}
+\NormalTok{val.error}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## [1] 0.0254
+\end{verbatim}
+
+A validation error around 2.5\% --- notably higher than the
+essentially-zero training error a full-data fit could give the illusion
+of, since 5,000 held-out observations never influenced the fitted
+coefficients at all.
+
+\subsection{(c) Repeating with three different
+splits}\label{c-repeating-with-three-different-splits}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{val\_error }\OtherTok{\textless{}{-}} \ControlFlowTok{function}\NormalTok{(seed) \{}
+  \FunctionTok{set.seed}\NormalTok{(seed)}
+\NormalTok{  train }\OtherTok{\textless{}{-}} \FunctionTok{sample}\NormalTok{(n, n }\SpecialCharTok{/} \DecValTok{2}\NormalTok{)}
+\NormalTok{  fit }\OtherTok{\textless{}{-}} \FunctionTok{glm}\NormalTok{(default }\SpecialCharTok{\textasciitilde{}}\NormalTok{ income }\SpecialCharTok{+}\NormalTok{ balance, }\AttributeTok{data =}\NormalTok{ Default,}
+             \AttributeTok{family =}\NormalTok{ binomial, }\AttributeTok{subset =}\NormalTok{ train)}
+\NormalTok{  probs }\OtherTok{\textless{}{-}} \FunctionTok{predict}\NormalTok{(fit, Default[}\SpecialCharTok{{-}}\NormalTok{train, ], }\AttributeTok{type =} \StringTok{"response"}\NormalTok{)}
+\NormalTok{  pred }\OtherTok{\textless{}{-}} \FunctionTok{ifelse}\NormalTok{(probs }\SpecialCharTok{\textgreater{}} \FloatTok{0.5}\NormalTok{, }\StringTok{"Yes"}\NormalTok{, }\StringTok{"No"}\NormalTok{)}
+  \FunctionTok{mean}\NormalTok{(pred }\SpecialCharTok{!=}\NormalTok{ Default[}\SpecialCharTok{{-}}\NormalTok{train, ]}\SpecialCharTok{$}\NormalTok{default)}
+\NormalTok{\}}
+
+\NormalTok{errors }\OtherTok{\textless{}{-}} \FunctionTok{sapply}\NormalTok{(}\FunctionTok{c}\NormalTok{(}\DecValTok{1}\NormalTok{, }\DecValTok{2}\NormalTok{, }\DecValTok{3}\NormalTok{), val\_error)}
+\NormalTok{errors}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## [1] 0.0254 0.0238 0.0264
+\end{verbatim}
+
+The three error rates all land in a fairly tight band (roughly
+2.4\%--2.6\%), but they're not identical --- which is the point. Every
+one of these numbers is a valid estimate of the same underlying test
+error, yet each depends on the arbitrary luck of which 5,000
+observations happened to land in the training half. That split-to-split
+variability is exactly the validation set approach's core weakness:
+throwing away half the data for training, on a single random split,
+means both the fitted model and the resulting error estimate are noisier
+than they'd need to be with a method like \(k\)-fold cross-validation
+that reuses the data more efficiently.
+
+\subsection{\texorpdfstring{(d) Adding a \texttt{student} dummy
+variable}{(d) Adding a student dummy variable}}\label{d-adding-a-student-dummy-variable}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{set.seed}\NormalTok{(}\DecValTok{1}\NormalTok{)}
+\NormalTok{train }\OtherTok{\textless{}{-}} \FunctionTok{sample}\NormalTok{(n, n }\SpecialCharTok{/} \DecValTok{2}\NormalTok{)}
+\NormalTok{glm.fit.student }\OtherTok{\textless{}{-}} \FunctionTok{glm}\NormalTok{(default }\SpecialCharTok{\textasciitilde{}}\NormalTok{ income }\SpecialCharTok{+}\NormalTok{ balance }\SpecialCharTok{+}\NormalTok{ student, }\AttributeTok{data =}\NormalTok{ Default,}
+                        \AttributeTok{family =}\NormalTok{ binomial, }\AttributeTok{subset =}\NormalTok{ train)}
+\NormalTok{glm.probs }\OtherTok{\textless{}{-}} \FunctionTok{predict}\NormalTok{(glm.fit.student, Default[}\SpecialCharTok{{-}}\NormalTok{train, ], }\AttributeTok{type =} \StringTok{"response"}\NormalTok{)}
+\NormalTok{glm.pred }\OtherTok{\textless{}{-}} \FunctionTok{ifelse}\NormalTok{(glm.probs }\SpecialCharTok{\textgreater{}} \FloatTok{0.5}\NormalTok{, }\StringTok{"Yes"}\NormalTok{, }\StringTok{"No"}\NormalTok{)}
+
+\NormalTok{val.error.student }\OtherTok{\textless{}{-}} \FunctionTok{mean}\NormalTok{(glm.pred }\SpecialCharTok{!=}\NormalTok{ Default[}\SpecialCharTok{{-}}\NormalTok{train, ]}\SpecialCharTok{$}\NormalTok{default)}
+\NormalTok{val.error.student}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## [1] 0.026
+\end{verbatim}
+
+With the same seed (and so the same train/test split) as (b), adding
+\texttt{student} gives a validation error of 0.026, essentially
+identical to --- in this run, marginally \emph{higher} than --- 0.0254
+without it. So there's no evidence here that including \texttt{student}
+improves predictive performance. This isn't surprising in hindsight:
+\texttt{student} is strongly correlated with \texttt{balance} (students
+tend to carry different balances than non-students), so much of whatever
+information \texttt{student} carries about default risk is already
+captured once \texttt{balance} is in the model --- adding it doesn't
+give logistic regression much new signal to work with, only extra
+estimation noise.
+
+\newpage
+
+\section{\texorpdfstring{Exercise 9 --- Bootstrap Estimates for the
+\texttt{Boston}
+Data}{Exercise 9 --- Bootstrap Estimates for the Boston Data}}\label{exercise-9-bootstrap-estimates-for-the-boston-data}
+
+Every part below is about the same core idea: \texttt{medv} (or a
+statistic of it) is being estimated from one particular sample of 506
+census tracts, and we want to know how much that estimate would bounce
+around if we happened to have drawn a different sample of the same size
+from the same population. Textbook formulas exist for some statistics
+(the sample mean); the bootstrap gives us an answer even for the ones
+that don't (the median, a percentile) by treating our one sample as a
+stand-in for the population and resampling from it directly.
+
+\subsection{\texorpdfstring{(a) Estimate of the population mean,
+\(\hat\mu\)}{(a) Estimate of the population mean, \textbackslash hat\textbackslash mu}}\label{a-estimate-of-the-population-mean-hatmu}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{Boston2 }\OtherTok{\textless{}{-}}\NormalTok{ ISLR2}\SpecialCharTok{::}\NormalTok{Boston}
+\NormalTok{mu.hat }\OtherTok{\textless{}{-}} \FunctionTok{mean}\NormalTok{(Boston2}\SpecialCharTok{$}\NormalTok{medv)}
+\NormalTok{mu.hat}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## [1] 22.53281
+\end{verbatim}
+
+\subsection{\texorpdfstring{(b) Standard error of \(\hat\mu\), by
+formula}{(b) Standard error of \textbackslash hat\textbackslash mu, by formula}}\label{b-standard-error-of-hatmu-by-formula}
+
+\[
+\text{SE}(\hat\mu) = \frac{s}{\sqrt{n}}
+\]
+
+where \(s\) is the sample standard deviation of \texttt{medv} and
+\(n = 506\).
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{se.formula }\OtherTok{\textless{}{-}} \FunctionTok{sd}\NormalTok{(Boston2}\SpecialCharTok{$}\NormalTok{medv) }\SpecialCharTok{/} \FunctionTok{sqrt}\NormalTok{(}\FunctionTok{nrow}\NormalTok{(Boston2))}
+\NormalTok{se.formula}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## [1] 0.4088611
+\end{verbatim}
+
+This measures how much \(\hat\mu\) would be expected to vary, on
+average, across repeated samples of 506 tracts drawn from the same
+population --- about \$409 (recall \texttt{medv} is in \$1000s), against
+a mean around \$22,530.
+
+\subsection{\texorpdfstring{(c) Standard error of \(\hat\mu\), by
+bootstrap}{(c) Standard error of \textbackslash hat\textbackslash mu, by bootstrap}}\label{c-standard-error-of-hatmu-by-bootstrap}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{set.seed}\NormalTok{(}\DecValTok{1}\NormalTok{)}
+\NormalTok{boot.fn.mean }\OtherTok{\textless{}{-}} \ControlFlowTok{function}\NormalTok{(data, index) }\FunctionTok{mean}\NormalTok{(data[index])}
+\NormalTok{boot.mean }\OtherTok{\textless{}{-}} \FunctionTok{boot}\NormalTok{(Boston2}\SpecialCharTok{$}\NormalTok{medv, boot.fn.mean, }\AttributeTok{R =} \DecValTok{10000}\NormalTok{)}
+\NormalTok{boot.mean}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## 
+## ORDINARY NONPARAMETRIC BOOTSTRAP
+## 
+## 
+## Call:
+## boot(data = Boston2$medv, statistic = boot.fn.mean, R = 10000)
+## 
+## 
+## Bootstrap Statistics :
+##     original       bias    std. error
+## t1* 22.53281 -0.002350771   0.4069546
+\end{verbatim}
+
+The bootstrap standard error (0.407) comes out essentially identical to
+the formula-based estimate in (b) (0.4089) --- reassuring, since for
+something as well-behaved as a sample mean, the classical formula is
+already exact asymptotically. The bootstrap isn't doing anything the
+formula couldn't already do here; its real value shows up in (f) and
+(h), for statistics that have no comparably simple formula at all.
+
+\subsection{(d) 95\% confidence interval for the mean, via
+bootstrap}\label{d-95-confidence-interval-for-the-mean-via-bootstrap}
+
+Using the approximation given in the exercise,
+\([\hat\mu - 2\,\text{SE}(\hat\mu),\ \hat\mu + 2\,\text{SE}(\hat\mu)]\):
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{se.boot }\OtherTok{\textless{}{-}} \FunctionTok{sd}\NormalTok{(boot.mean}\SpecialCharTok{$}\NormalTok{t)}
+\NormalTok{ci.boot }\OtherTok{\textless{}{-}} \FunctionTok{c}\NormalTok{(mu.hat }\SpecialCharTok{{-}} \DecValTok{2} \SpecialCharTok{*}\NormalTok{ se.boot, mu.hat }\SpecialCharTok{+} \DecValTok{2} \SpecialCharTok{*}\NormalTok{ se.boot)}
+\NormalTok{ci.boot}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## [1] 21.71890 23.34672
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{t.test}\NormalTok{(Boston2}\SpecialCharTok{$}\NormalTok{medv)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## 
+##  One Sample t-test
+## 
+## data:  Boston2$medv
+## t = 55.111, df = 505, p-value < 2.2e-16
+## alternative hypothesis: true mean is not equal to 0
+## 95 percent confidence interval:
+##  21.72953 23.33608
+## sample estimates:
+## mean of x 
+##  22.53281
+\end{verbatim}
+
+The bootstrap-based interval (roughly 21.72 to 23.35) is nearly
+indistinguishable from \texttt{t.test()}'s interval --- expected, since
+both are really estimating the same quantity (\(\pm 2\) standard errors
+around the mean is a close approximation to the \(t\)-distribution
+multiplier \texttt{t.test()} uses at \(n=506\)), just arrived at through
+different machinery: one assumes normal-theory sampling distribution
+math, the other estimates the same spread empirically by actually
+resampling.
+
+\subsection{(e) Estimate of the population
+median}\label{e-estimate-of-the-population-median}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{med.hat }\OtherTok{\textless{}{-}} \FunctionTok{median}\NormalTok{(Boston2}\SpecialCharTok{$}\NormalTok{medv)}
+\NormalTok{med.hat}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## [1] 21.2
+\end{verbatim}
+
+\subsection{(f) Standard error of the median, via
+bootstrap}\label{f-standard-error-of-the-median-via-bootstrap}
+
+There is no simple closed-form formula for the standard error of a
+sample median (unlike the mean, in (b)) --- this is precisely the
+situation the bootstrap is built for.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{set.seed}\NormalTok{(}\DecValTok{1}\NormalTok{)}
+\NormalTok{boot.fn.median }\OtherTok{\textless{}{-}} \ControlFlowTok{function}\NormalTok{(data, index) }\FunctionTok{median}\NormalTok{(data[index])}
+\NormalTok{boot.median }\OtherTok{\textless{}{-}} \FunctionTok{boot}\NormalTok{(Boston2}\SpecialCharTok{$}\NormalTok{medv, boot.fn.median, }\AttributeTok{R =} \DecValTok{10000}\NormalTok{)}
+\NormalTok{boot.median}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## 
+## ORDINARY NONPARAMETRIC BOOTSTRAP
+## 
+## 
+## Call:
+## boot(data = Boston2$medv, statistic = boot.fn.median, R = 10000)
+## 
+## 
+## Bootstrap Statistics :
+##     original    bias    std. error
+## t1*     21.2 -0.014705   0.3780355
+\end{verbatim}
+
+The estimated standard error (0.378) is somewhat \emph{smaller} than the
+mean's standard error from (c) --- the median is less sensitive than the
+mean to the handful of very high-\texttt{medv} tracts (recall
+\texttt{medv} appears capped at \$50,000 in this data), so it varies a
+bit less across resamples.
+
+\subsection{(g) Estimate of the 10th
+percentile}\label{g-estimate-of-the-10th-percentile}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{mu.hat}\FloatTok{.01} \OtherTok{\textless{}{-}} \FunctionTok{quantile}\NormalTok{(Boston2}\SpecialCharTok{$}\NormalTok{medv, }\FloatTok{0.1}\NormalTok{)}
+\NormalTok{mu.hat}\FloatTok{.01}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+##   10% 
+## 12.75
+\end{verbatim}
+
+\subsection{(h) Standard error of the 10th percentile, via
+bootstrap}\label{h-standard-error-of-the-10th-percentile-via-bootstrap}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{set.seed}\NormalTok{(}\DecValTok{1}\NormalTok{)}
+\NormalTok{boot.fn.q10 }\OtherTok{\textless{}{-}} \ControlFlowTok{function}\NormalTok{(data, index) }\FunctionTok{quantile}\NormalTok{(data[index], }\FloatTok{0.1}\NormalTok{)}
+\NormalTok{boot.q10 }\OtherTok{\textless{}{-}} \FunctionTok{boot}\NormalTok{(Boston2}\SpecialCharTok{$}\NormalTok{medv, boot.fn.q10, }\AttributeTok{R =} \DecValTok{10000}\NormalTok{)}
+\NormalTok{boot.q10}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## 
+## ORDINARY NONPARAMETRIC BOOTSTRAP
+## 
+## 
+## Call:
+## boot(data = Boston2$medv, statistic = boot.fn.q10, R = 10000)
+## 
+## 
+## Bootstrap Statistics :
+##     original   bias    std. error
+## t1*    12.75 0.007625   0.5014507
+\end{verbatim}
+
+The standard error here (0.5015) is the largest of the three statistics
+examined --- larger than both the mean's and the median's. This tracks
+with intuition: the 10th percentile is estimated from comparatively few,
+more extreme observations in the lower tail of \texttt{medv}, so there's
+inherently less data locally supporting that estimate than there is
+supporting the mean or median, which draw on the full distribution. This
+is exactly the kind of finding the bootstrap makes practical to obtain
+--- no standard formula for the standard error of a percentile exists at
+all, yet the same resampling procedure that worked for the mean and
+median hands us an answer here just as directly.
+
+\end{document}
