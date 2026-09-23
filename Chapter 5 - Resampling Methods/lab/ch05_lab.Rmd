@@ -1,0 +1,502 @@
+---
+output:
+  pdf_document:
+    keep_tex: true
+    number_sections: true
+header-includes:
+  - \usepackage{amsmath}
+  - \input{../../_common/preamble.tex}
+fontsize: 11pt
+geometry: margin=1in
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = TRUE,
+  message = FALSE,
+  warning = FALSE,
+  fig.align = "center"
+)
+```
+
+```{=latex}
+\makecoverpage{Chapter 5 --- Resampling Methods \\ Lab}
+```
+
+# Introduction
+
+When a model is fitted, its training error is usually too optimistic: the
+same observations were used both to estimate the model and to measure how
+well it fits. The real questions are different. How well will the model
+predict new observations? How much would its coefficients change if we had
+collected a different sample? Which model complexity gives the best balance
+between underfitting and overfitting?
+
+Resampling methods answer these questions by repeatedly reusing the observed
+data in carefully chosen ways. This lab develops four closely related ideas:
+
+1. the validation-set approach;
+2. leave-one-out cross-validation (LOOCV);
+3. $k$-fold cross-validation; and
+4. the bootstrap.
+
+The first three estimate prediction error. The bootstrap estimates the
+sampling variability of statistics such as regression coefficients and
+portfolio weights. We use the `Auto` and `Portfolio` data sets from `ISLR2`.
+The main prediction problem is to model automobile fuel efficiency (`mpg`)
+from horsepower using polynomial regression.
+
+```{r libraries}
+library(ISLR2)
+library(boot)
+```
+
+## The prediction problem and the bias--variance trade-off
+
+Let $Y$ be a response and $X$ a predictor. A fitted model produces
+$\hat{f}(X)$, and its prediction error on a new observation can be written as
+
+$$
+\mathbb{E}\left[(Y - \hat{f}(X))^2 \mid X=x\right]
+= \underbrace{\sigma^2}_{\text{irreducible noise}}
++ \underbrace{\operatorname{Bias}\left[\hat{f}(x)\right]^2}_{\text{systematic error}}
++ \underbrace{\operatorname{Var}\left[\hat{f}(x)\right]}_{\text{sensitivity to the sample}}.
+$$
+
+A very simple model may have high bias because it cannot represent the true
+relationship. A highly flexible model may have low training error but high
+variance because it follows random details of the particular sample. The
+purpose of resampling is to estimate the out-of-sample part of this trade-off
+using only the data we have.
+
+# Validation Set Approach
+
+## Idea and mathematical definition
+
+The validation-set approach randomly divides the data into a training set and
+a validation set. We fit the model using only the training observations, then
+evaluate predictions on observations that were not used for fitting. For
+regression, the estimate is the validation mean squared error (MSE):
+
+$$
+\operatorname{MSE}_{\mathrm{val}}
+= \frac{1}{n_{\mathrm{val}}}
+\sum_{i \in \mathcal{V}}
+\left(y_i - \hat{f}_{\mathcal{T}}(x_i)\right)^2,
+$$
+
+where $\mathcal{T}$ is the training set and $\mathcal{V}$ is the validation
+set. The notation on $\hat{f}_{\mathcal{T}}$ matters: the model was fitted
+using the training observations only.
+
+The approach is easy and fast, but the result depends on one random split.
+Also, because the model is trained on fewer observations than are ultimately
+available, its validation error can be a little pessimistic.
+
+## One training/validation split
+
+`Auto` contains 392 cars after missing observations have been removed. We
+compare polynomial models of degrees one, two, and three. A fixed seed makes
+the random split reproducible for the report.
+
+```{r validation-setup}
+data(Auto)
+Auto <- na.omit(Auto)
+n <- nrow(Auto)
+
+set.seed(1)
+train <- sample(seq_len(n), size = n / 2)
+validation <- -train
+
+validation_mse <- function(model, data, validation_indices) {
+  mean((data$mpg - predict(model, newdata = data))[validation_indices]^2)
+}
+
+validation_results <- data.frame(
+  Degree = 1:3,
+  Validation_MSE = c(
+    validation_mse(lm(mpg ~ horsepower, data = Auto, subset = train), Auto, validation),
+    validation_mse(lm(mpg ~ poly(horsepower, 2), data = Auto, subset = train), Auto, validation),
+    validation_mse(lm(mpg ~ poly(horsepower, 3), data = Auto, subset = train), Auto, validation)
+  )
+)
+validation_results
+```
+
+The model with the smallest validation MSE is preferred for this split. The
+quadratic model normally improves substantially over the linear model because
+fuel efficiency falls quickly at first and then levels off. If the cubic
+model is not better, that is evidence that its extra flexibility is fitting
+sample-specific variation rather than a reliable pattern.
+
+```{r validation-plot, fig.width=6, fig.height=4}
+plot(
+  validation_results$Degree,
+  validation_results$Validation_MSE,
+  type = "b", pch = 19, col = "steelblue",
+  xlab = "Polynomial degree", ylab = "Validation MSE",
+  main = "Validation error for polynomial models"
+)
+```
+
+## Why one split is not enough
+
+The validation set is itself a random sample. Changing the split changes both
+the fitted coefficients and the observations used to judge them. The model
+comparison is therefore noisy even when the underlying data-generating
+process has not changed.
+
+```{r validation-repeated}
+validation_mse_for_seed <- function(seed, degree) {
+  set.seed(seed)
+  training_indices <- sample(seq_len(n), size = n / 2)
+  model_formula <- if (degree == 1) {
+    mpg ~ horsepower
+  } else {
+    mpg ~ poly(horsepower, degree)
+  }
+  model <- lm(model_formula, data = Auto, subset = training_indices)
+  mean(
+    (Auto$mpg - predict(model, newdata = Auto))[-training_indices]^2
+  )
+}
+
+split_results <- expand.grid(Seed = 1:10, Degree = 1:3)
+split_results$Validation_MSE <- mapply(
+  validation_mse_for_seed,
+  split_results$Seed,
+  split_results$Degree
+)
+
+aggregate(Validation_MSE ~ Degree, data = split_results,
+          FUN = function(x) c(Mean = mean(x), SD = sd(x)))
+```
+
+The standard deviation across splits shows the weakness of relying on one
+holdout set. Repeated splitting is informative, but cross-validation gives a
+more systematic way to ensure that every observation participates in both
+training and validation.
+
+# Leave-One-Out Cross-Validation
+
+## Procedure
+
+LOOCV creates $n$ training sets. For the $i$th fit, observation $i$ is left
+out, the model is fitted to the other $n-1$ observations, and the held-out
+prediction error is recorded. The final estimate is
+
+$$
+\operatorname{CV}_{(n)}
+= \frac{1}{n}\sum_{i=1}^{n}
+\left(y_i - \hat{f}^{(-i)}(x_i)\right)^2,
+$$
+
+where $\hat{f}^{(-i)}$ means that observation $i$ was excluded when fitting.
+Unlike a single validation split, every observation is used for validation
+exactly once and for training $n-1$ times.
+
+For linear regression there is a useful shortcut. If $e_i=y_i-\hat{y}_i$ is
+the ordinary residual and $h_{ii}$ is the leverage of observation $i$, then
+
+$$
+\operatorname{CV}_{(n)}
+= \frac{1}{n}\sum_{i=1}^{n}
+\left(\frac{e_i}{1-h_{ii}}\right)^2.
+$$
+
+The `cv.glm()` function uses this idea for a generalized linear model. An
+ordinary Gaussian `glm()` is equivalent to `lm()` for this purpose.
+
+```{r loocv}
+loocv_results <- data.frame(
+  Degree = 1:10,
+  LOOCV_MSE = NA_real_
+)
+
+for (degree in loocv_results$Degree) {
+  model_formula <- if (degree == 1) {
+    mpg ~ horsepower
+  } else {
+    mpg ~ poly(horsepower, degree)
+  }
+  model <- glm(model_formula, data = Auto)
+  loocv_results$LOOCV_MSE[degree] <- cv.glm(Auto, model)$delta[1]
+}
+
+loocv_results
+```
+
+```{r loocv-plot, fig.width=6, fig.height=4}
+plot(
+  loocv_results$Degree, loocv_results$LOOCV_MSE,
+  type = "b", pch = 19, col = "firebrick",
+  xlab = "Polynomial degree", ylab = "LOOCV MSE",
+  main = "Leave-one-out cross-validation"
+)
+```
+
+The typical pattern is a large improvement from degree one to degree two,
+followed by a flat curve. That means the quadratic term captures important
+curvature, while higher-order terms do not produce a dependable reduction in
+prediction error. LOOCV is attractive because each fit uses almost the full
+data set, but it requires many model fits and can be computationally costly
+for large data sets.
+
+# $k$-Fold Cross-Validation
+
+## Procedure and trade-off
+
+In $k$-fold cross-validation, the observations are divided into $k$ folds.
+Each fold is held out once while the other $k-1$ folds are used for training:
+
+$$
+\operatorname{CV}_{(k)}
+= \frac{1}{k}\sum_{j=1}^{k}
+\left(\frac{1}{|\mathcal{V}_j|}
+\sum_{i\in\mathcal{V}_j}
+\left(y_i-\hat{f}^{(-j)}(x_i)\right)^2\right).
+$$
+
+When $k=n$, this becomes LOOCV. Common choices such as $k=5$ or $k=10$
+require far fewer fits while still using every observation for validation.
+Smaller $k$ can have slightly more bias because each training set is smaller,
+but it is usually more computationally efficient.
+
+```{r tenfold-cv}
+set.seed(17)
+kfold_results <- data.frame(
+  Degree = 1:10,
+  Tenfold_CV_MSE = NA_real_
+)
+
+for (degree in kfold_results$Degree) {
+  model_formula <- if (degree == 1) {
+    mpg ~ horsepower
+  } else {
+    mpg ~ poly(horsepower, degree)
+  }
+  model <- glm(model_formula, data = Auto)
+  kfold_results$Tenfold_CV_MSE[degree] <-
+    cv.glm(Auto, model, K = 10)$delta[1]
+}
+
+kfold_results
+```
+
+```{r compare-cv, fig.width=6, fig.height=4}
+plot(
+  loocv_results$Degree, loocv_results$LOOCV_MSE,
+  type = "b", pch = 19, col = "firebrick",
+  xlab = "Polynomial degree", ylab = "Estimated test MSE",
+  ylim = range(c(loocv_results$LOOCV_MSE, kfold_results$Tenfold_CV_MSE)),
+  main = "LOOCV and 10-fold CV"
+)
+lines(
+  kfold_results$Degree, kfold_results$Tenfold_CV_MSE,
+  type = "b", pch = 17, col = "steelblue"
+)
+legend(
+  "topright", legend = c("LOOCV", "10-fold CV"),
+  col = c("firebrick", "steelblue"), pch = c(19, 17), lty = 1
+)
+```
+
+The two curves should have the same practical conclusion even though their
+individual values differ slightly. Ten-fold CV is often the useful default:
+it is much cheaper than LOOCV and generally gives a stable estimate of the
+model's test error. Cross-validation estimates prediction error; it does not
+prove that one model is the true data-generating model.
+
+# The Bootstrap
+
+## The basic idea
+
+Cross-validation focuses on prediction. The bootstrap focuses on uncertainty
+in an estimate. We treat the observed sample as an approximation to the
+population and repeatedly draw bootstrap samples of size $n$ **with
+replacement**. For a statistic $\hat{\theta}=T(Z_1,\ldots,Z_n)$, the
+$b$th bootstrap estimate is
+
+$$
+\hat{\theta}^{*b} = T(Z_1^{*b},\ldots,Z_n^{*b}),
+\qquad b=1,\ldots,B.
+$$
+
+The standard deviation of the bootstrap estimates approximates the standard
+error:
+
+$$
+\widehat{\operatorname{SE}}_{\mathrm{boot}}(\hat{\theta})
+= \sqrt{\frac{1}{B-1}\sum_{b=1}^{B}
+\left(\hat{\theta}^{*b}-\overline{\theta^*}\right)^2}.
+$$
+
+The phrase *with replacement* is essential. It means some observations may
+appear multiple times and some may be absent in a particular bootstrap
+sample. That variation imitates the fact that a new random sample would not
+contain exactly the same observations as the original one.
+
+## Portfolio allocation
+
+The `Portfolio` data set contains returns for two assets, `X` and `Y`. Suppose
+we invest fraction $\alpha$ in asset $X$ and $1-\alpha$ in asset $Y$. The
+portfolio return is
+
+$$R_p = \alpha X + (1-\alpha)Y.$$
+
+Minimizing its variance gives
+
+$$
+\hat{\alpha} =
+\frac{\hat{\sigma}_Y^2-\hat{\sigma}_{XY}}
+{\hat{\sigma}_X^2+\hat{\sigma}_Y^2-2\hat{\sigma}_{XY}}.
+$$
+
+This formula is easy to calculate on the original data. The uncertainty in
+$\hat{\alpha}$ is less obvious, so it is a good bootstrap example.
+
+```{r portfolio-bootstrap}
+data(Portfolio)
+
+alpha_function <- function(data, index) {
+  X <- data$X[index]
+  Y <- data$Y[index]
+  (var(Y) - cov(X, Y)) /
+    (var(X) + var(Y) - 2 * cov(X, Y))
+}
+
+alpha_hat <- alpha_function(Portfolio, seq_len(nrow(Portfolio)))
+
+set.seed(7)
+alpha_boot <- boot(Portfolio, alpha_function, R = 1000)
+alpha_se <- sd(alpha_boot$t)
+alpha_ci <- alpha_hat + c(-1, 1) * 1.96 * alpha_se
+
+data.frame(
+  Estimate = alpha_hat,
+  Bootstrap_SE = alpha_se,
+  CI_lower = alpha_ci[1],
+  CI_upper = alpha_ci[2]
+)
+```
+
+The estimate is the suggested fraction invested in asset $X$, conditional on
+the observed sample. The bootstrap standard error says how much this
+allocation would typically move across comparable samples. The approximate
+normal-theory interval is computed as
+
+$$
+\hat{\alpha} \pm 1.96\,\widehat{\operatorname{SE}}_{\mathrm{boot}}.
+$$
+
+This interval is an uncertainty statement, not a guarantee that future
+returns will lie inside it. It describes uncertainty in the estimated
+allocation, while the investment decision itself also requires a risk model
+and practical constraints.
+
+```{r portfolio-bootstrap-plot, fig.width=6, fig.height=4}
+hist(
+  alpha_boot$t, breaks = 30, col = "grey85", border = "white",
+  xlab = expression(alpha^"*"),
+  main = "Bootstrap distribution of the portfolio weight"
+)
+abline(v = alpha_hat, col = "firebrick", lwd = 2)
+abline(v = alpha_ci, col = "steelblue", lty = 2, lwd = 2)
+legend(
+  "topright",
+  legend = c("Original estimate", "Approx. 95% interval"),
+  col = c("firebrick", "steelblue"), lty = c(1, 2), lwd = 2
+)
+```
+
+## Bootstrap standard errors for regression coefficients
+
+The bootstrap can estimate uncertainty for almost any statistic that can be
+computed from a data set. Here the statistic is the vector of coefficients
+from a regression of `mpg` on `horsepower`.
+
+```{r coefficient-bootstrap}
+coefficient_function <- function(data, index) {
+  coef(lm(mpg ~ horsepower, data = data, subset = index))
+}
+
+coefficient_hat <- coefficient_function(Auto, seq_len(nrow(Auto)))
+
+set.seed(1)
+coefficient_boot <- boot(Auto, coefficient_function, R = 1000)
+
+coefficient_summary <- data.frame(
+  Term = names(coefficient_hat),
+  Estimate = unname(coefficient_hat),
+  Bootstrap_SE = apply(coefficient_boot$t, 2, sd),
+  Classical_SE = coef(summary(lm(mpg ~ horsepower, data = Auto)))[, "Std. Error"]
+)
+coefficient_summary
+```
+
+The slope is negative: cars with greater horsepower tend to have lower fuel
+efficiency. The bootstrap standard error measures the variability of that
+slope under repeated samples. Comparing it with the usual regression
+standard error is a useful diagnostic. Similar values suggest that the
+classical approximation is reasonable here; noticeable differences remind us
+that standard errors depend on assumptions about the model and its errors.
+
+We can also bootstrap a nonlinear specification. The quadratic coefficient
+measures curvature, so its uncertainty helps us decide whether the observed
+curvature is stable enough to support the added model complexity.
+
+```{r quadratic-coefficient-bootstrap}
+quadratic_function <- function(data, index) {
+  coef(lm(mpg ~ horsepower + I(horsepower^2),
+          data = data, subset = index))
+}
+
+set.seed(1)
+quadratic_boot <- boot(Auto, quadratic_function, R = 1000)
+
+data.frame(
+  Term = names(coef(lm(mpg ~ horsepower + I(horsepower^2), data = Auto))),
+  Estimate = coef(lm(mpg ~ horsepower + I(horsepower^2), data = Auto)),
+  Bootstrap_SE = apply(quadratic_boot$t, 2, sd)
+)
+```
+
+# Putting the Methods Together
+
+The methods answer different questions, so their outputs should not be
+confused:
+
+| Method | Main question | Mechanism |
+|---|---|---|
+| Validation set | How well does this model predict on one held-out split? | One train/validation split |
+| LOOCV | What is the average held-out error when each observation is left out? | $n$ fits |
+| $k$-fold CV | What is held-out error using a practical number of folds? | $k$ fits |
+| Bootstrap | How variable is an estimate across plausible samples? | Resample with replacement |
+
+For the `Auto` analysis, the resampling results generally support a
+quadratic relationship between `mpg` and `horsepower`: degree two improves on
+degree one, while higher degrees provide little dependable improvement. This
+is a model-selection conclusion about predictive performance, not a claim
+that a quadratic law is physically exact.
+
+The broader lesson is that a fitted model is only one estimate obtained from
+one sample. Validation and cross-validation expose how prediction changes
+when observations are held out. The bootstrap exposes how statistical
+summaries change when the observed sample is perturbed. Together they provide
+an empirical way to reason about generalization and uncertainty rather than
+reporting training fit alone.
+
+# Conclusion
+
+Resampling methods turn a single data set into a collection of informative
+experiments. The validation set is simple but unstable. LOOCV uses data
+efficiently but can be expensive. Ten-fold cross-validation is often a good
+practical compromise for comparing model complexity. The bootstrap is more
+general: it estimates standard errors for statistics whose sampling
+distributions are difficult to derive analytically.
+
+The most important habit is to match the resampling method to the question.
+Use held-out predictions when the concern is generalization, and use
+bootstrap replicates when the concern is the uncertainty of an estimate.
+Neither method removes irreducible noise, but both make the limits of what we
+learn from a finite sample much more visible.
