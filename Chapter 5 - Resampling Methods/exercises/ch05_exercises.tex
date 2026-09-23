@@ -110,7 +110,7 @@
 
 \begin{document}
 
-\makecoverpage{Chapter 5 --- Resampling Methods \\ Exercises 5 and 9}
+\makecoverpage{Chapter 5 --- Resampling Methods \\ Exercises 1, 5, and 9}
 
 \begin{Shaded}
 \begin{Highlighting}[]
@@ -118,6 +118,192 @@
 \FunctionTok{library}\NormalTok{(boot)}
 \end{Highlighting}
 \end{Shaded}
+
+\section{Exercise 1 --- Deriving the Minimum-Variance Investment
+Weight}\label{exercise-1-deriving-the-minimum-variance-investment-weight}
+
+This exercise considers a portfolio made from two risky assets. Let
+\(X\) and \(Y\) denote the returns of the two assets. We invest a
+fraction \(\alpha\) in \(X\) and the remaining fraction, \(1-\alpha\),
+in \(Y\). The portfolio return is therefore
+
+\[
+R_p(\alpha) = \alpha X + (1-\alpha)Y.
+\]
+
+The aim is to choose \(\alpha\) so that the portfolio has the smallest
+possible variance. In plain language, we are looking for the allocation
+whose returns fluctuate least. This does \textbf{not} necessarily mean
+investing everything in the less volatile asset: if \(X\) and \(Y\) do
+not move perfectly together, combining them can reduce risk through
+diversification.
+
+\subsection{\texorpdfstring{Step 1: Express portfolio risk as a function
+of
+\(\alpha\)}{Step 1: Express portfolio risk as a function of \textbackslash alpha}}\label{step-1-express-portfolio-risk-as-a-function-of-alpha}
+
+Write
+
+\[
+\sigma_X^2 = \operatorname{Var}(X), \qquad
+\sigma_Y^2 = \operatorname{Var}(Y), \qquad
+\sigma_{XY} = \operatorname{Cov}(X,Y).
+\]
+
+Using
+
+\[
+\operatorname{Var}(A+B) = \operatorname{Var}(A) + \operatorname{Var}(B)
+  + 2\operatorname{Cov}(A,B),
+\]
+
+along with \(\operatorname{Var}(cA)=c^2\operatorname{Var}(A)\) and
+\(\operatorname{Cov}(cA,dB)=cd\operatorname{Cov}(A,B)\), we obtain
+
+\[
+\begin{aligned}
+f(\alpha)
+  &= \operatorname{Var}\left(\alpha X + (1-\alpha)Y\right) \\
+  &= \alpha^2\sigma_X^2 + (1-\alpha)^2\sigma_Y^2
+     + 2\alpha(1-\alpha)\sigma_{XY}.
+\end{aligned}
+\]
+
+The covariance term is important. If the assets tend to move in opposite
+directions, \(\sigma_{XY}\) is negative and diversification can lower
+the portfolio variance substantially. If they move together, the
+diversification benefit is smaller.
+
+\subsection{Step 2: Differentiate the
+variance}\label{step-2-differentiate-the-variance}
+
+Expanding the expression and collecting powers of \(\alpha\) gives
+
+\[
+f(\alpha) =
+\left(\sigma_X^2 + \sigma_Y^2 - 2\sigma_{XY}\right)\alpha^2
+- 2\left(\sigma_Y^2 - \sigma_{XY}\right)\alpha
++ \sigma_Y^2.
+\]
+
+The variances and covariance are fixed numbers, so differentiating with
+respect to \(\alpha\) gives
+
+\[
+f'(\alpha) =
+2\left(\sigma_X^2 + \sigma_Y^2 - 2\sigma_{XY}\right)\alpha
+- 2\left(\sigma_Y^2 - \sigma_{XY}\right).
+\]
+
+At an interior optimum, the slope is zero. Setting \(f'(\alpha)=0\)
+means that a small shift of money from one asset to the other cannot
+improve the variance in either direction.
+
+\subsection{Step 3: Solve for the optimal
+weight}\label{step-3-solve-for-the-optimal-weight}
+
+Set the derivative equal to zero and divide by 2:
+
+\[
+\left(\sigma_X^2 + \sigma_Y^2 - 2\sigma_{XY}\right)\alpha
+= \sigma_Y^2 - \sigma_{XY}.
+\]
+
+Therefore,
+
+\[
+\boxed{
+\alpha^* =
+\frac{\sigma_Y^2 - \sigma_{XY}}
+{\sigma_X^2 + \sigma_Y^2 - 2\sigma_{XY}}
+}
+\]
+
+This is equation (5.6). The weight on \(Y\) is automatically
+\(1-\alpha^*\). The formula depends on both individual risks and the
+covariance between the assets, which is why looking only at the two
+variances is not enough.
+
+\subsection{Step 4: Verify that the critical point is a
+minimum}\label{step-4-verify-that-the-critical-point-is-a-minimum}
+
+The second derivative is
+
+\[
+f''(\alpha) =
+2\left(\sigma_X^2 + \sigma_Y^2 - 2\sigma_{XY}\right).
+\]
+
+The expression inside the parentheses is itself a variance:
+
+\[
+\sigma_X^2 + \sigma_Y^2 - 2\sigma_{XY}
+= \operatorname{Var}(X-Y) \geq 0.
+\]
+
+Thus \(f''(\alpha)\geq 0\), so \(f\) is a convex quadratic. The
+stationary point is consequently a global minimum whenever
+\(\operatorname{Var}(X-Y)>0\). If \(\operatorname{Var}(X-Y)=0\), then
+\(X\) and \(Y\) are identical up to a constant and every allocation has
+the same variance; in that degenerate case the denominator in (5.6) is
+zero because there is no diversification problem left to optimize.
+
+\subsection{Numerical check}\label{numerical-check}
+
+The following simulation computes the formula from sample variances and
+covariance, then independently searches a fine grid of possible weights.
+The two answers should agree up to the grid resolution.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{set.seed}\NormalTok{(}\DecValTok{1}\NormalTok{)}
+\NormalTok{n }\OtherTok{\textless{}{-}} \DecValTok{100000}
+\NormalTok{X }\OtherTok{\textless{}{-}} \FunctionTok{rnorm}\NormalTok{(n, }\AttributeTok{mean =} \DecValTok{8}\NormalTok{, }\AttributeTok{sd =} \DecValTok{4}\NormalTok{)}
+\NormalTok{Y }\OtherTok{\textless{}{-}} \FloatTok{0.6} \SpecialCharTok{*}\NormalTok{ X }\SpecialCharTok{+} \FunctionTok{rnorm}\NormalTok{(n, }\AttributeTok{mean =} \DecValTok{2}\NormalTok{, }\AttributeTok{sd =} \DecValTok{5}\NormalTok{)}
+
+\NormalTok{sigma2.X }\OtherTok{\textless{}{-}} \FunctionTok{var}\NormalTok{(X)}
+\NormalTok{sigma2.Y }\OtherTok{\textless{}{-}} \FunctionTok{var}\NormalTok{(Y)}
+\NormalTok{sigma.XY }\OtherTok{\textless{}{-}} \FunctionTok{cov}\NormalTok{(X, Y)}
+
+\NormalTok{alpha.formula }\OtherTok{\textless{}{-}}\NormalTok{ (sigma2.Y }\SpecialCharTok{{-}}\NormalTok{ sigma.XY) }\SpecialCharTok{/}
+\NormalTok{  (sigma2.X }\SpecialCharTok{+}\NormalTok{ sigma2.Y }\SpecialCharTok{{-}} \DecValTok{2} \SpecialCharTok{*}\NormalTok{ sigma.XY)}
+
+\NormalTok{alphas }\OtherTok{\textless{}{-}} \FunctionTok{seq}\NormalTok{(}\DecValTok{0}\NormalTok{, }\DecValTok{1}\NormalTok{, }\AttributeTok{by =} \FloatTok{0.001}\NormalTok{)}
+\NormalTok{portfolio.variance }\OtherTok{\textless{}{-}} \FunctionTok{sapply}\NormalTok{(}
+\NormalTok{  alphas,}
+  \ControlFlowTok{function}\NormalTok{(alpha) }\FunctionTok{var}\NormalTok{(alpha }\SpecialCharTok{*}\NormalTok{ X }\SpecialCharTok{+}\NormalTok{ (}\DecValTok{1} \SpecialCharTok{{-}}\NormalTok{ alpha) }\SpecialCharTok{*}\NormalTok{ Y)}
+\NormalTok{)}
+\NormalTok{alpha.grid }\OtherTok{\textless{}{-}}\NormalTok{ alphas[}\FunctionTok{which.min}\NormalTok{(portfolio.variance)]}
+
+\FunctionTok{c}\NormalTok{(}\AttributeTok{alpha.formula =}\NormalTok{ alpha.formula, }\AttributeTok{alpha.grid =}\NormalTok{ alpha.grid)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## alpha.formula    alpha.grid 
+##     0.7649506     0.7650000
+\end{verbatim}
+
+The formula and grid-search values should be almost identical. The small
+difference is expected because the grid checks weights only at
+increments of 0.001, while the calculus solution is continuous.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{plot}\NormalTok{(alphas, portfolio.variance, }\AttributeTok{type =} \StringTok{"l"}\NormalTok{, }\AttributeTok{lwd =} \DecValTok{2}\NormalTok{,}
+     \AttributeTok{xlab =} \FunctionTok{expression}\NormalTok{(alpha), }\AttributeTok{ylab =} \StringTok{"Portfolio variance"}\NormalTok{,}
+     \AttributeTok{main =} \StringTok{"Portfolio variance as the allocation changes"}\NormalTok{)}
+\FunctionTok{abline}\NormalTok{(}\AttributeTok{v =}\NormalTok{ alpha.formula, }\AttributeTok{col =} \StringTok{"red"}\NormalTok{, }\AttributeTok{lty =} \DecValTok{2}\NormalTok{, }\AttributeTok{lwd =} \DecValTok{2}\NormalTok{)}
+\FunctionTok{legend}\NormalTok{(}\StringTok{"top"}\NormalTok{, }\AttributeTok{legend =} \FunctionTok{expression}\NormalTok{(alpha}\SpecialCharTok{\^{}}\StringTok{"*"}\NormalTok{),}
+       \AttributeTok{col =} \StringTok{"red"}\NormalTok{, }\AttributeTok{lty =} \DecValTok{2}\NormalTok{, }\AttributeTok{lwd =} \DecValTok{2}\NormalTok{, }\AttributeTok{bty =} \StringTok{"n"}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{center}\includegraphics{ch05_exercises_files/figure-latex/ex1-plot-1} \end{center}
+
+The U-shaped curve is the graphical signature of the convexity proved
+above: moving toward the minimizing weight lowers variance until
+\(\alpha^*\) is reached, and moving past it increases variance again.
 
 \section{\texorpdfstring{Exercise 5 --- Validation-Set Error for
 Logistic Regression on

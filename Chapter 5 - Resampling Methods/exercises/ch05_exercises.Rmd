@@ -15,13 +15,180 @@ knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE, fig.align =
 ```
 
 ```{=latex}
-\makecoverpage{Chapter 5 --- Resampling Methods \\ Exercises 5 and 9}
+\makecoverpage{Chapter 5 --- Resampling Methods \\ Exercises 1, 5, and 9}
 ```
 
 ```{r libraries}
 library(ISLR2)
 library(boot)
 ```
+
+# Exercise 1 — Deriving the Minimum-Variance Investment Weight
+
+This exercise considers a portfolio made from two risky assets. Let $X$ and
+$Y$ denote the returns of the two assets. We invest a fraction $\alpha$ in
+$X$ and the remaining fraction, $1-\alpha$, in $Y$. The portfolio return is
+therefore
+
+$$
+R_p(\alpha) = \alpha X + (1-\alpha)Y.
+$$
+
+The aim is to choose $\alpha$ so that the portfolio has the smallest possible
+variance. In plain language, we are looking for the allocation whose returns
+fluctuate least. This does **not** necessarily mean investing everything in
+the less volatile asset: if $X$ and $Y$ do not move perfectly together,
+combining them can reduce risk through diversification.
+
+## Step 1: Express portfolio risk as a function of $\alpha$
+
+Write
+
+$$
+\sigma_X^2 = \operatorname{Var}(X), \qquad
+\sigma_Y^2 = \operatorname{Var}(Y), \qquad
+\sigma_{XY} = \operatorname{Cov}(X,Y).
+$$
+
+Using
+
+$$
+\operatorname{Var}(A+B) = \operatorname{Var}(A) + \operatorname{Var}(B)
+  + 2\operatorname{Cov}(A,B),
+$$
+
+along with $\operatorname{Var}(cA)=c^2\operatorname{Var}(A)$ and
+$\operatorname{Cov}(cA,dB)=cd\operatorname{Cov}(A,B)$, we obtain
+
+$$
+\begin{aligned}
+f(\alpha)
+  &= \operatorname{Var}\left(\alpha X + (1-\alpha)Y\right) \\
+  &= \alpha^2\sigma_X^2 + (1-\alpha)^2\sigma_Y^2
+     + 2\alpha(1-\alpha)\sigma_{XY}.
+\end{aligned}
+$$
+
+The covariance term is important. If the assets tend to move in opposite
+directions, $\sigma_{XY}$ is negative and diversification can lower the
+portfolio variance substantially. If they move together, the diversification
+benefit is smaller.
+
+## Step 2: Differentiate the variance
+
+Expanding the expression and collecting powers of $\alpha$ gives
+
+$$
+f(\alpha) =
+\left(\sigma_X^2 + \sigma_Y^2 - 2\sigma_{XY}\right)\alpha^2
+- 2\left(\sigma_Y^2 - \sigma_{XY}\right)\alpha
++ \sigma_Y^2.
+$$
+
+The variances and covariance are fixed numbers, so differentiating with
+respect to $\alpha$ gives
+
+$$
+f'(\alpha) =
+2\left(\sigma_X^2 + \sigma_Y^2 - 2\sigma_{XY}\right)\alpha
+- 2\left(\sigma_Y^2 - \sigma_{XY}\right).
+$$
+
+At an interior optimum, the slope is zero. Setting $f'(\alpha)=0$ means
+that a small shift of money from one asset to the other cannot improve the
+variance in either direction.
+
+## Step 3: Solve for the optimal weight
+
+Set the derivative equal to zero and divide by 2:
+
+$$
+\left(\sigma_X^2 + \sigma_Y^2 - 2\sigma_{XY}\right)\alpha
+= \sigma_Y^2 - \sigma_{XY}.
+$$
+
+Therefore,
+
+$$
+\boxed{
+\alpha^* =
+\frac{\sigma_Y^2 - \sigma_{XY}}
+{\sigma_X^2 + \sigma_Y^2 - 2\sigma_{XY}}
+}
+$$
+
+This is equation (5.6). The weight on $Y$ is automatically $1-\alpha^*$.
+The formula depends on both individual risks and the covariance between the
+assets, which is why looking only at the two variances is not enough.
+
+## Step 4: Verify that the critical point is a minimum
+
+The second derivative is
+
+$$
+f''(\alpha) =
+2\left(\sigma_X^2 + \sigma_Y^2 - 2\sigma_{XY}\right).
+$$
+
+The expression inside the parentheses is itself a variance:
+
+$$
+\sigma_X^2 + \sigma_Y^2 - 2\sigma_{XY}
+= \operatorname{Var}(X-Y) \geq 0.
+$$
+
+Thus $f''(\alpha)\geq 0$, so $f$ is a convex quadratic. The stationary
+point is consequently a global minimum whenever $\operatorname{Var}(X-Y)>0$.
+If $\operatorname{Var}(X-Y)=0$, then $X$ and $Y$ are identical up to a
+constant and every allocation has the same variance; in that degenerate case
+the denominator in (5.6) is zero because there is no diversification problem
+left to optimize.
+
+## Numerical check
+
+The following simulation computes the formula from sample variances and
+covariance, then independently searches a fine grid of possible weights. The
+two answers should agree up to the grid resolution.
+
+```{r ex1-sanity-check}
+set.seed(1)
+n <- 100000
+X <- rnorm(n, mean = 8, sd = 4)
+Y <- 0.6 * X + rnorm(n, mean = 2, sd = 5)
+
+sigma2.X <- var(X)
+sigma2.Y <- var(Y)
+sigma.XY <- cov(X, Y)
+
+alpha.formula <- (sigma2.Y - sigma.XY) /
+  (sigma2.X + sigma2.Y - 2 * sigma.XY)
+
+alphas <- seq(0, 1, by = 0.001)
+portfolio.variance <- sapply(
+  alphas,
+  function(alpha) var(alpha * X + (1 - alpha) * Y)
+)
+alpha.grid <- alphas[which.min(portfolio.variance)]
+
+c(alpha.formula = alpha.formula, alpha.grid = alpha.grid)
+```
+
+The formula and grid-search values should be almost identical. The small
+difference is expected because the grid checks weights only at increments of
+0.001, while the calculus solution is continuous.
+
+```{r ex1-plot, fig.height=3.2, fig.width=5}
+plot(alphas, portfolio.variance, type = "l", lwd = 2,
+     xlab = expression(alpha), ylab = "Portfolio variance",
+     main = "Portfolio variance as the allocation changes")
+abline(v = alpha.formula, col = "red", lty = 2, lwd = 2)
+legend("top", legend = expression(alpha^"*"),
+       col = "red", lty = 2, lwd = 2, bty = "n")
+```
+
+The U-shaped curve is the graphical signature of the convexity proved above:
+moving toward the minimizing weight lowers variance until $\alpha^*$ is
+reached, and moving past it increases variance again.
 
 # Exercise 5 — Validation-Set Error for Logistic Regression on `Default`
 
