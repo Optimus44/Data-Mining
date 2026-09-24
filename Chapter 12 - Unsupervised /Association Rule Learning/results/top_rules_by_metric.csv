@@ -1,0 +1,4 @@
+"metric","antecedent","consequent","support","confidence","lift"
+"confidence","{other vegetables,yogurt}","{whole milk}",0.0222674123029995,0.51288056206089,2.00723451168677
+"lift","{other vegetables,whole milk}","{root vegetables}",0.0231825114387392,0.309782608695652,2.84208204899416
+"support","{other vegetables}","{whole milk}",0.0748347737671581,0.386757750919601,1.51363409482462
