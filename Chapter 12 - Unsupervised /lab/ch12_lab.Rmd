@@ -1,0 +1,447 @@
+---
+output:
+  pdf_document:
+    keep_tex: true
+    number_sections: true
+header-includes:
+  - \usepackage{amsmath}
+  - \input{../../_common/preamble.tex}
+fontsize: 11pt
+geometry: margin=1in
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = TRUE,
+  message = FALSE,
+  warning = FALSE,
+  fig.align = "center"
+)
+```
+
+```{=latex}
+\makecoverpage{Chapter 12 --- Unsupervised Learning \\ Lab}
+```
+
+```{r libraries}
+library(ISLR2)
+```
+
+# Introduction
+
+Supervised learning has a response variable that tells us what we are trying
+to predict. Unsupervised learning starts without that response. Instead, it
+looks for useful structure in the predictors themselves.
+
+This lab develops the main tools from Chapter 12 of *An Introduction to
+Statistical Learning*:
+
+1. principal component analysis (PCA), which replaces many correlated
+   predictors with a smaller number of directions that explain their shared
+   variation;
+2. hierarchical clustering, which builds a tree of increasingly large
+   clusters; and
+3. $K$-means clustering, which directly searches for a chosen number of
+   compact groups.
+
+The methods answer related but different questions. PCA is primarily a
+continuous dimension-reduction method. Clustering is primarily a grouping
+method. Neither method automatically discovers the one true answer: the
+analyst must choose scales, distances, tuning values, and interpretations
+carefully.
+
+# Principal Component Analysis
+
+## Why dimension reduction is useful
+
+Suppose a dataset contains $p$ quantitative variables. Plotting or modelling
+all $p$ variables can be difficult, especially when several variables measure
+similar underlying phenomena. PCA constructs new variables called principal
+components. Each component is a linear combination of the original variables:
+
+$$
+Z_m = \phi_{1m}X_1 + \phi_{2m}X_2 + \cdots + \phi_{pm}X_p.
+$$
+
+The loading vector $\phi_m=(\phi_{1m},\ldots,\phi_{pm})$ determines the
+ direction of the component. PCA chooses the first direction to maximise the
+variance of the projected observations, subject to $\|\phi_1\|=1$:
+
+$$
+\phi_1 = \arg\max_{\|\phi\|=1}
+\operatorname{Var}(X\phi).
+$$
+
+The second component is the direction with the largest remaining variance,
+subject to being orthogonal to the first, and so on. The components are
+uncorrelated by construction and are ordered from greatest to least variance.
+
+## PCA with the `USArrests` data
+
+`USArrests` contains four crime-related measurements for the 50 US states.
+The variables are measured on different scales, so the analysis should
+standardize them first. Otherwise, a variable with larger numerical units
+would influence the components more heavily even if it were not more
+informative.
+
+```{r pca-usarrests-prepare}
+data(USArrests)
+summary(USArrests)
+
+USArrests_scaled <- scale(USArrests)
+apply(USArrests_scaled, 2, mean)
+apply(USArrests_scaled, 2, sd)
+```
+
+The sample covariance matrix shows how the original variables move together.
+PCA diagonalizes this covariance matrix: its eigenvectors give the loading
+vectors, and its eigenvalues give the variances of the corresponding
+components.
+
+```{r pca-usarrests}
+usarrests.pca <- prcomp(USArrests, scale. = TRUE)
+summary(usarrests.pca)
+```
+
+The standard deviations reported by `prcomp()` are the square roots of the
+component variances. The proportion of variance explained by component $m$ is
+therefore
+
+$$
+\operatorname{PVE}_m =
+\frac{d_m^2}{\sum_{j=1}^{p}d_j^2},
+$$
+
+where $d_m$ is the reported standard deviation of component $m$. The
+cumulative PVE tells us how many components are needed to retain a chosen
+amount of total variation.
+
+```{r pca-usarrests-table}
+usarrests_pve <- data.frame(
+  Component = seq_along(usarrests.pca$sdev),
+  Standard_deviation = usarrests.pca$sdev,
+  Proportion_variance = usarrests.pca$sdev^2 /
+    sum(usarrests.pca$sdev^2),
+  Cumulative_variance = cumsum(usarrests.pca$sdev^2) /
+    sum(usarrests.pca$sdev^2)
+)
+usarrests_pve
+```
+
+```{r pca-usarrests-scree, fig.width=6, fig.height=4}
+plot(usarrests_pve$Component, usarrests_pve$Proportion_variance,
+     type = "b", pch = 19,
+     xlab = "Principal component",
+     ylab = "Proportion of variance explained",
+     main = "USArrests: scree plot")
+```
+
+The loadings show which original variables contribute to each direction. A
+large absolute loading means that the variable is important for that
+component; the sign is a direction convention, because multiplying an entire
+component by $-1$ gives the same underlying axis.
+
+```{r pca-usarrests-loadings}
+round(usarrests.pca$rotation, 3)
+```
+
+The first component often places violent and property crime measures in a
+similar direction, while the second contrasts the variables that behave
+differently. This interpretation should be made from the loading pattern,
+not from the component name alone.
+
+## Visualising observations in component space
+
+```{r pca-usarrests-biplot, fig.width=7, fig.height=6}
+biplot(usarrests.pca, scale = 0, cex = 0.7,
+       main = "USArrests represented in the first two PCs")
+```
+
+A biplot displays both observations and variable directions. States that are
+near one another have similar standardized crime profiles. Variables pointing
+in similar directions are positively associated; variables pointing in
+opposite directions are negatively associated in the displayed component
+plane.
+
+# Hierarchical Clustering
+
+## Distances and linkage
+
+Clustering begins with a measure of dissimilarity between observations. With
+standardized quantitative variables, Euclidean distance between observations
+$i$ and $j$ is
+
+$$
+ d(i,j) = \sqrt{\sum_{k=1}^{p}(x_{ik}-x_{jk})^2}.
+$$
+
+Hierarchical clustering initially treats every observation as its own
+cluster. At each step it merges the two closest clusters and records the
+fusion distance. The complete sequence of merges is represented by a
+dendrogram.
+
+Different linkage rules define cluster distance differently. For clusters $A$
+and $B$:
+
+$$
+D_{\mathrm{single}}(A,B) = \min_{i\in A,j\in B}d(i,j),
+$$
+
+$$
+D_{\mathrm{complete}}(A,B) = \max_{i\in A,j\in B}d(i,j),
+$$
+
+and average linkage uses the mean of all cross-cluster distances. Single
+linkage can join groups through chains of nearby observations, while complete
+linkage tends to favour compact groups.
+
+## `USArrests` dendrograms
+
+We use the standardized data so that the distance is not dominated by the
+measurement units of a single variable.
+
+```{r hclust-usarrests}
+distance.usarrests <- dist(USArrests_scaled)
+
+hc.complete <- hclust(distance.usarrests, method = "complete")
+hc.average <- hclust(distance.usarrests, method = "average")
+hc.single <- hclust(distance.usarrests, method = "single")
+```
+
+```{r hclust-usarrests-plots, fig.width=8, fig.height=7}
+par(mfrow = c(3, 1), mar = c(3, 4, 3, 1))
+plot(hc.complete, main = "Complete linkage", xlab = "", sub = "")
+plot(hc.average, main = "Average linkage", xlab = "", sub = "")
+plot(hc.single, main = "Single linkage", xlab = "", sub = "")
+par(mfrow = c(1, 1))
+```
+
+The same observations can appear in visibly different positions in the three
+dendrograms because the linkage rule changes which merge is considered closest.
+A dendrogram is not a final partition until we choose a height or a number of
+clusters at which to cut it.
+
+## Cutting the dendrogram
+
+```{r hclust-cuts}
+complete_k4 <- cutree(hc.complete, k = 4)
+average_k4 <- cutree(hc.average, k = 4)
+
+head(complete_k4)
+table(complete_k4)
+table(average_k4)
+```
+
+```{r hclust-comparison}
+comparison <- table(
+  Complete_linkage = complete_k4,
+  Average_linkage = average_k4
+)
+comparison
+```
+
+The cross-tabulation is a descriptive comparison, not a claim that one
+clustering is correct. If two methods place the same states together, that
+agreement suggests a stable grouping. Disagreement identifies observations
+whose group membership depends on the linkage choice.
+
+## A reproducible cluster interpretation
+
+```{r hclust-profiles}
+complete_profiles <- aggregate(
+  USArrests,
+  by = list(Cluster = complete_k4),
+  FUN = mean
+)
+complete_profiles
+```
+
+Cluster profiles translate an abstract dendrogram into the original units. A
+cluster with a high mean for `Murder` and `Assault`, for example, represents
+states with higher average values on those measures in this dataset. It is
+important to describe these as profiles rather than causal explanations.
+
+# $K$-Means Clustering
+
+## The objective
+
+$K$-means requires us to choose the number of clusters $K$ in advance. It then
+assigns each observation to one cluster and chooses cluster centres to minimise
+within-cluster sum of squares:
+
+$$
+\operatorname{WSS}(C_1,\ldots,C_K)
+= \sum_{k=1}^{K}\sum_{i\in C_k}
+\|x_i-\bar x_k\|^2.
+$$
+
+The algorithm alternates between two steps:
+
+1. assign each observation to its nearest current centre;
+2. recompute each centre as the mean of the observations assigned to it.
+
+Each step cannot increase the objective, but the procedure can stop at a local
+minimum. Consequently, `nstart` runs the algorithm from multiple random
+initialisations and keeps the solution with the smallest WSS.
+
+## Applying $K$-means to `USArrests`
+
+```{r kmeans-usarrests}
+set.seed(1)
+kmeans_3 <- kmeans(USArrests_scaled, centers = 3, nstart = 20)
+kmeans_3$size
+kmeans_3$centers
+```
+
+The centres are expressed in standardized units, so a centre of $1$ means
+approximately one standard deviation above the overall feature mean. The
+cluster sizes show whether the solution is balanced or dominated by one large
+group.
+
+```{r kmeans-usarrests-profiles}
+kmeans_profiles <- aggregate(
+  USArrests,
+  by = list(Cluster = kmeans_3$cluster),
+  FUN = mean
+)
+kmeans_profiles
+```
+
+Unlike hierarchical clustering, $K$-means does not produce all possible group
+sizes in one fitted object. We must fit separate models for different values
+of $K$ if we want to compare them.
+
+## Choosing $K$ with an elbow plot
+
+For each $K$, the total within-cluster sum of squares measures compactness. It
+will always decrease as $K$ grows, because more centres give the algorithm
+more flexibility. We therefore look for an elbow: a point after which adding
+another cluster produces only modest improvement.
+
+```{r kmeans-elbow}
+set.seed(1)
+K_values <- 1:8
+wss_values <- sapply(K_values, function(K) {
+  kmeans(USArrests_scaled, centers = K, nstart = 20)$tot.withinss
+})
+
+plot(K_values, wss_values, type = "b", pch = 19,
+     xlab = "Number of clusters K",
+     ylab = "Total within-cluster sum of squares",
+     main = "USArrests: K-means elbow plot")
+```
+
+The elbow is a judgement aid rather than a mechanical proof. In an
+unsupervised problem there is no response variable that can certify the best
+choice, so subject-matter usefulness and stability should also influence the
+choice.
+
+# The `NCI60` Gene-Expression Data
+
+## Data structure
+
+The `NCI60` data contain gene-expression measurements for 64 cancer cell lines
+across thousands of genes. The data object has a numeric matrix and a label
+indicating the cancer type. We will use the labels for interpretation and
+checking, but unsupervised methods are fitted using the expression matrix.
+
+```{r nci60-load}
+data(NCI60)
+str(NCI60)
+dim(NCI60$data)
+table(NCI60$labs)
+```
+
+The raw number of genes is much larger than the number of cell lines. PCA is
+therefore a natural first step: it gives a low-dimensional view of the
+variation before clustering.
+
+## PCA for `NCI60`
+
+```{r nci60-pca}
+nci60.pca <- prcomp(NCI60$data, scale. = TRUE)
+summary(nci60.pca)
+```
+
+```{r nci60-pca-plot, fig.width=7, fig.height=5}
+nci60_scores <- nci60.pca$x[, 1:2]
+nci60_labels <- sort(unique(as.character(NCI60$labs)))
+nci60_label_codes <- match(as.character(NCI60$labs), nci60_labels)
+plot(nci60_scores,
+  col = nci60_label_codes, pch = 19,
+     xlab = "First principal component",
+     ylab = "Second principal component",
+     main = "NCI60 cell lines in the first two PCs")
+legend("topright", legend = nci60_labels,
+    col = seq_along(nci60_labels), pch = 19,
+       cex = 0.65, bty = "n")
+```
+
+The colours are added after the unsupervised computation to see whether known
+cancer labels line up with visible structure. Strong overlap would mean that
+the first two PCs do not separate those types cleanly; visible grouping would
+suggest that the expression measurements contain type-related structure.
+
+## Hierarchical clustering for `NCI60`
+
+```{r nci60-hclust}
+nci60_distance <- dist(NCI60$data)
+nci60_hc <- hclust(nci60_distance, method = "complete")
+
+plot(nci60_hc, labels = NCI60$labs,
+     main = "NCI60: complete-linkage clustering",
+     xlab = "Cell lines", sub = "")
+```
+
+```{r nci60-hclust-compare}
+nci60_clusters <- cutree(nci60_hc, k = 4)
+table(Cluster = nci60_clusters, Cancer_type = NCI60$labs)
+```
+
+The table compares the unsupervised cluster assignments with the known labels.
+It is not a training confusion matrix: the labels were not used to create the
+clusters. Some clusters may contain several cancer types, and one cancer type
+may appear in multiple clusters, because the expression structure need not
+match the supplied labels exactly.
+
+## $K$-means for `NCI60`
+
+```{r nci60-kmeans}
+set.seed(1)
+nci60_kmeans <- kmeans(NCI60$data, centers = 4, nstart = 50)
+
+table(Cluster = nci60_kmeans$cluster, Cancer_type = NCI60$labs)
+```
+
+The choice of $K=4$ is made here for comparison with the hierarchical cut. In
+practice, we would examine several values of $K$, use stability or validation
+criteria, and consider the scientific purpose of the grouping.
+
+# Comparing the Methods
+
+The methods can be summarised by the question each one answers:
+
+| Method | Main question | Main tuning choice |
+|:--|:--|:--|
+| PCA | Which directions explain the most variation? | Number of components |
+| Hierarchical clustering | How do observations merge at every distance level? | Distance, linkage, and cut |
+| $K$-means | Which $K$ compact groups minimise within-cluster variation? | $K$ and initialisation |
+
+A responsible analysis reports the choices that produced the result. Scaling,
+distance, linkage, random seed, and the number of clusters are not cosmetic
+details; they define the geometry of the unsupervised problem.
+
+# Conclusion
+
+PCA compresses correlated variables into orthogonal directions ordered by
+explained variance. Hierarchical clustering provides a nested picture of
+similarity, while $K$-means produces a direct partition for a selected $K$.
+The `USArrests` example shows how scaling and linkage affect a clustering
+result, and the `NCI60` example shows how PCA and clustering can reveal
+structure in high-dimensional gene-expression data.
+
+Because unsupervised learning has no response variable to score directly, the
+best practice is to examine several reasonable specifications, report the
+sensitivity of the conclusions, and interpret the resulting patterns using
+subject-matter knowledge rather than treating one algorithmic output as an
+objective truth.
