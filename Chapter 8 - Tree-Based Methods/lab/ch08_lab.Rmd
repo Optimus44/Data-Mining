@@ -1,0 +1,470 @@
+---
+output:
+  pdf_document:
+    keep_tex: true
+    number_sections: true
+header-includes:
+  - \usepackage{amsmath}
+  - \input{../../_common/preamble.tex}
+fontsize: 11pt
+geometry: margin=1in
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = TRUE,
+  message = FALSE,
+  warning = FALSE,
+  fig.align = "center"
+)
+```
+
+```{=latex}
+\makecoverpage{Chapter 8 --- Tree-Based Methods \\ Lab}
+```
+
+# Introduction
+
+A decision tree predicts an outcome by repeatedly splitting the predictor
+space into simpler regions. The result is easy to explain: observations that
+follow the same sequence of splits receive the same prediction. Trees are
+therefore attractive when interpretability, nonlinear relationships, and
+interactions matter.
+
+Their main weakness is instability. A small change in the training data can
+change an early split, which can change the entire tree below it. This lab
+starts with individual classification and regression trees, then introduces
+three ensemble approaches that address this instability in different ways:
+
+1. pruning controls the complexity of one tree;
+2. Bagging averages many trees trained on bootstrap samples;
+3. Random Forests add random feature selection to reduce correlation between
+   the trees; and
+4. Boosting builds trees sequentially to correct the current model's errors.
+
+The lab follows the Chapter 8.3 workflow from *An Introduction to Statistical
+Learning*. The explanations state the practical idea first and then connect it
+to the relevant statistical objective.
+
+```{r libraries}
+# Install these once if necessary:
+# install.packages(c("ISLR2", "tree", "randomForest", "gbm", "BART"))
+
+library(ISLR2)
+library(tree)
+library(randomForest)
+library(gbm)
+library(BART)
+```
+
+# Classification Trees
+
+## The `Carseats` data
+
+The `Carseats` data describe the sales of child car seats at 400 stores. Our
+first task is classification: we create a binary response indicating whether
+sales are high or low.
+
+A store is labelled `Yes` when `Sales` exceeds 8 thousand units and `No`
+otherwise. This threshold is a modelling choice: it changes a continuous
+business outcome into a decision problem that could support an action such as
+identifying stores for extra promotion.
+
+```{r carseats-prepare}
+data(Carseats)
+High <- factor(ifelse(Carseats$Sales <= 8, "No", "Yes"))
+Carseats <- data.frame(Carseats, High)
+
+str(Carseats)
+table(Carseats$High)
+```
+
+## Growing a classification tree
+
+A classification tree partitions the predictor space into regions and assigns
+one class to each terminal region. At a candidate split, the algorithm looks
+for a partition that makes the resulting child nodes purer. One common purity
+measure is the Gini index:
+
+$$
+G = \sum_{k=1}^{K} \hat p_k(1-\hat p_k),
+$$
+
+where $\hat p_k$ is the proportion of observations in the node belonging to
+class $k$. A node containing only one class has Gini index zero; a mixed node
+has a larger value.
+
+The `tree()` function grows a large tree first. This is useful because the
+subsequent pruning step can compare smaller subtrees obtained from the large
+candidate tree.
+
+```{r carseats-tree}
+tree.carseats <- tree(High ~ . - Sales, data = Carseats)
+tree.carseats
+
+cat("Terminal nodes:", sum(tree.carseats$frame$var == "<leaf>"), "\n")
+cat("Training misclassification rate:",
+  mean(predict(tree.carseats, type = "class") != Carseats$High), "\n")
+```
+
+The summary reports the number of terminal nodes and the training error. A
+very large tree can have a low training error because it has enough regions to
+memorise the training sample. That is not evidence that it will predict new
+stores well.
+
+```{r carseats-tree-plot, fig.width=8, fig.height=6}
+plot(tree.carseats)
+text(tree.carseats, pretty = 0)
+```
+
+The plot should be read from the root downward. At each internal node, the
+condition sends an observation left or right. A terminal node gives the final
+class prediction and its estimated class probabilities.
+
+## Cross-validation and pruning
+
+A tree with too many terminal nodes has high variance, while a tree that is
+too small may have high bias. Cost-complexity pruning makes this tradeoff
+explicit. For a subtree $T$, a common objective is
+
+$$
+R_\alpha(T) = R(T) + \alpha |T|,
+$$
+
+where $R(T)$ measures the tree's training misclassification error, $|T|$ is
+the number of terminal nodes, and $\alpha \geq 0$ penalizes complexity. A
+larger $\alpha$ favours a smaller tree.
+
+Cross-validation estimates which tree size is likely to perform best on new
+data. Here we use misclassification error as the cross-validation criterion.
+
+```{r carseats-cv}
+set.seed(1)
+cv.carseats <- cv.tree(tree.carseats, FUN = prune.misclass)
+cv.carseats
+
+plot(cv.carseats$size, cv.carseats$dev, type = "b",
+     xlab = "Number of terminal nodes",
+     ylab = "Cross-validated misclassification error",
+     main = "Choosing the classification-tree size")
+```
+
+The lowest point is the cross-validation choice. Because cross-validation is
+random, a different seed can move the minimum slightly; the important idea is
+that tree size is selected using held-out predictions rather than training
+error alone.
+
+```{r carseats-prune}
+prune.carseats <- prune.misclass(tree.carseats,
+                                 best = cv.carseats$size[which.min(cv.carseats$dev)])
+summary(prune.carseats)
+
+plot(prune.carseats)
+text(prune.carseats, pretty = 0)
+```
+
+Pruning usually produces a simpler tree. Simplicity is useful for
+interpretation, but it is not automatically optimal; the cross-validation
+estimate is the evidence used to choose the amount of pruning.
+
+# Regression Trees
+
+## The `Hitters` data
+
+We now predict a quantitative response: baseball players' salaries. The
+regression-tree analogue of a classification tree assigns a constant
+prediction to every terminal node, usually the mean response of the training
+observations in that node.
+
+A regression tree chooses splits to reduce residual sum of squares (RSS):
+
+$$
+\operatorname{RSS}(T) = \sum_{m=1}^{|T|}
+  \sum_{i:x_i \in R_m}(y_i-\hat y_{R_m})^2,
+$$
+
+where $R_m$ is a terminal region and $\hat y_{R_m}$ is the mean response in
+that region. Again, an extremely large tree can reduce training RSS while
+performing poorly on new observations.
+
+```{r hitters-prepare}
+data(Hitters)
+Hitters <- na.omit(Hitters)
+
+set.seed(1)
+train <- sample(1:nrow(Hitters), nrow(Hitters) / 2)
+Hitters.train <- Hitters[train, ]
+Hitters.test <- Hitters[-train, ]
+```
+
+```{r hitters-tree}
+tree.hitters <- tree(Salary ~ ., data = Hitters.train)
+summary(tree.hitters)
+
+plot(tree.hitters)
+text(tree.hitters, pretty = 0)
+```
+
+The first split is the predictor that gives the largest immediate reduction in
+RSS under the algorithm's greedy search. Later splits represent interactions:
+their meaning is conditional on the decisions made higher in the tree.
+
+## Cross-validation and a test-set check
+
+```{r hitters-cv}
+set.seed(1)
+cv.hitters <- cv.tree(tree.hitters)
+plot(cv.hitters$size, cv.hitters$dev, type = "b",
+     xlab = "Number of terminal nodes",
+     ylab = "Cross-validated RSS",
+     main = "Choosing the regression-tree size")
+
+prune.hitters <- prune.tree(tree.hitters,
+                            best = cv.hitters$size[which.min(cv.hitters$dev)])
+summary(prune.hitters)
+```
+
+We evaluate the unpruned and pruned models on the same test set. Test error is
+an estimate of future prediction error because these observations were not
+used to fit the tree.
+
+```{r hitters-test-error}
+pred.tree <- predict(tree.hitters, Hitters.test)
+pred.pruned <- predict(prune.hitters, Hitters.test)
+
+mse.tree <- mean((pred.tree - Hitters.test$Salary)^2)
+mse.pruned <- mean((pred.pruned - Hitters.test$Salary)^2)
+
+c(unpruned_MSE = mse.tree, pruned_MSE = mse.pruned)
+```
+
+The better model is the one with the smaller test MSE in this split. The
+comparison also illustrates an important qualification: pruning can improve
+generalisation, but the result depends on the sample split and on the signal
+in the data. The purpose of the test set is to assess the final choice, not to
+choose repeatedly until a favourable result appears.
+
+# Bagging and Random Forests
+
+## Why averaging trees helps
+
+Bagging means bootstrap aggregating. We repeatedly sample $n$ observations
+with replacement, grow a tree on each bootstrap sample, and average the
+predictions. For regression,
+
+$$
+\hat f_{\mathrm{bag}}(x) = \frac{1}{B}\sum_{b=1}^{B}T_b(x).
+$$
+
+If the trees have variance $\sigma^2$ and pairwise correlation $\rho$, then
+under the usual simplifying assumptions,
+
+$$
+\operatorname{Var}\left(\frac{1}{B}\sum_{b=1}^{B}T_b(x)\right)
+= \sigma^2\left(\rho + \frac{1-\rho}{B}\right).
+$$
+
+Increasing $B$ reduces the unshared part of the variance. It cannot remove
+error shared by all trees, which is why reducing tree correlation is valuable.
+
+## Bagging on `Boston`
+
+The textbook uses the `Boston` data to compare tree ensembles for predicting
+`medv`, the median value of owner-occupied homes in a Boston suburb. We use a
+fixed train/test split so the models are compared on exactly the same cases.
+
+```{r boston-prepare}
+Boston <- ISLR2::Boston
+set.seed(1)
+train <- sample(1:nrow(Boston), nrow(Boston) / 2)
+Boston.train <- Boston[train, ]
+Boston.test <- Boston[-train, ]
+```
+
+For bagging, `mtry = 13` allows each split to consider all predictors. The
+bootstrap samples create the variation between trees.
+
+```{r boston-bagging}
+set.seed(1)
+bag.boston <- randomForest(
+  medv ~ ., data = Boston.train,
+  mtry = ncol(Boston.train) - 1,
+  importance = TRUE
+)
+
+bag.pred <- predict(bag.boston, Boston.test)
+bag.mse <- mean((bag.pred - Boston.test$medv)^2)
+bag.mse
+```
+
+The out-of-bag estimate is produced by predicting each training observation
+using only trees whose bootstrap sample did not contain that observation. It
+provides an internal performance estimate without a separate validation set.
+
+```{r boston-bagging-oob}
+bag.boston$mse[length(bag.boston$mse)]
+```
+
+## Random Forests
+
+Random Forests add a second source of randomness. At each split, only a
+random subset of the predictors is considered. If the strongest predictor is
+not always available, different trees are forced to explore different
+structures, reducing their correlation $\rho$.
+
+```{r boston-random-forest}
+set.seed(1)
+rf.boston <- randomForest(
+  medv ~ ., data = Boston.train,
+  mtry = 6,
+  importance = TRUE
+)
+
+rf.pred <- predict(rf.boston, Boston.test)
+rf.mse <- mean((rf.pred - Boston.test$medv)^2)
+rf.mse
+
+importance(rf.boston)
+varImpPlot(rf.boston)
+```
+
+The test MSEs provide an empirical comparison of bagging and the Random
+Forest. The Random Forest is not guaranteed to win on every split: its design
+trades a little individual-tree strength for lower correlation, and the
+tradeoff is data-dependent.
+
+```{r boston-ensemble-summary}
+data.frame(
+  Method = c("Bagging", "Random Forest"),
+  Test_MSE = c(bag.mse, rf.mse)
+)
+```
+
+# Boosting
+
+## Sequential error correction
+
+Boosting does not grow independent trees and average them. Instead, it builds
+an additive model one tree at a time:
+
+$$
+F_m(x) = F_{m-1}(x) + \lambda h_m(x),
+$$
+
+where $h_m$ is a new, usually shallow, tree and $\lambda$ is the learning
+rate. For squared-error regression, the next tree is fitted to the current
+residuals $y_i-F_{m-1}(x_i)$. The new tree is therefore a correction, not a
+complete model trained from scratch.
+
+## Gradient boosting on `Boston`
+
+The `gbm()` implementation uses stochastic gradient boosting. Its important
+controls are the number of trees, interaction depth, and shrinkage (learning
+rate). A smaller learning rate usually requires more trees but makes the
+updates more gradual.
+
+```{r boston-boosting}
+set.seed(1)
+boost.boston <- gbm(
+  medv ~ ., data = Boston.train,
+  distribution = "gaussian",
+  n.trees = 5000,
+  interaction.depth = 4,
+  shrinkage = 0.01,
+  verbose = FALSE
+)
+
+summary(boost.boston)
+```
+
+The variable-importance plot summarizes how much each variable contributes to
+reducing the loss across the boosted trees. It is a useful descriptive tool,
+not proof that a variable causes the response.
+
+```{r boston-boosting-importance, fig.width=7, fig.height=5}
+par(mar = c(5, 10, 4, 2))
+summary(boost.boston, las = 1)
+```
+
+```{r boston-boosting-mse}
+boost.pred <- predict(boost.boston, Boston.test, n.trees = 5000)
+boost.mse <- mean((boost.pred - Boston.test$medv)^2)
+boost.mse
+
+ensemble.results <- data.frame(
+  Method = c("Bagging", "Random Forest", "Boosting"),
+  Test_MSE = c(bag.mse, rf.mse, boost.mse)
+)
+ensemble.results[order(ensemble.results$Test_MSE), ]
+```
+
+The smallest test MSE in this table is the best result for this particular
+split and set of tuning choices. It should not be interpreted as a universal
+ranking. In practice, the number of trees, depth, learning rate, and feature
+sampling settings should be selected using cross-validation or a validation
+set, and the final test set should be used only once for the final assessment.
+
+# Bayesian Additive Regression Trees
+
+Bayesian Additive Regression Trees (BART) also represent the response as a
+sum of many trees:
+
+$$
+Y = \sum_{j=1}^{m} g(X; T_j, M_j) + \varepsilon,
+\qquad \varepsilon \sim N(0, \sigma^2).
+$$
+
+Here $T_j$ is the structure of tree $j$ and $M_j$ contains its terminal-node
+values. Unlike ordinary boosting, BART puts prior distributions on tree
+structures and leaf parameters, then uses posterior sampling to represent
+uncertainty about the ensemble.
+
+```{r boston-bart}
+set.seed(1)
+x.train <- as.matrix(Boston.train[, setdiff(names(Boston.train), "medv")])
+y.train <- Boston.train$medv
+x.test <- as.matrix(Boston.test[, setdiff(names(Boston.test), "medv")])
+
+bart.fit <- wbart(
+  x.train, y.train,
+  x.test = x.test,
+  nskip = 1000,
+  ndpost = 2000,
+  ntree = 200
+)
+
+bart.pred <- colMeans(bart.fit$yhat.test)
+bart.mse <- mean((bart.pred - Boston.test$medv)^2)
+bart.mse
+```
+
+The BART prediction is the posterior mean of the test predictions. Its
+posterior draws also contain uncertainty information, which is a major
+conceptual difference from a single fitted tree or a point-prediction-only
+ensemble.
+
+```{r boston-final-summary}
+final.results <- rbind(
+  ensemble.results,
+  data.frame(Method = "BART", Test_MSE = bart.mse)
+)
+final.results[order(final.results$Test_MSE), ]
+```
+
+# Conclusion
+
+A single tree gives an interpretable sequence of decisions, but its structure
+can be unstable. Pruning controls that instability by selecting a smaller
+subtree. Bagging reduces variance by averaging trees grown on bootstrap
+samples. Random Forests improve the averaging strategy by also reducing the
+correlation between trees through random feature selection. Boosting follows a
+different path: it grows trees sequentially, with each tree correcting the
+current ensemble. BART extends the additive-tree idea with Bayesian priors
+and posterior uncertainty.
+
+The main lesson is not that one method always wins. The appropriate method
+depends on the response type, the signal-to-noise ratio, the amount of tuning
+available, and whether interpretability or predictive accuracy is the primary
+goal. A fair comparison requires the same data split or resampling scheme,
+careful control of tuning, and a final evaluation on observations not used to
+fit the chosen model.
