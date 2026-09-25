@@ -15,6 +15,7 @@
 \usepackage{float}
 \usepackage{setspace}
 \input{../../../_common/preamble.tex}
+\input{../results/report_metrics.tex}
 
 \onehalfspacing
 
@@ -46,16 +47,26 @@
 \newpage
 \pagenumbering{arabic}
 
+\subsection{Why these thresholds were chosen}
+The minimum support of \textbf{\MinSupport} keeps the analysis focused on itemsets that
+appear in a meaningful share of the \TransactionCount transactions. The minimum confidence
+of \textbf{\MinConfidence} removes rules that make weak predictions about their consequent.
+These are practical screening thresholds, not universal statistical cutoffs. Lowering either
+threshold would produce more rules, including rarer and potentially less stable patterns;
+raising them would produce a shorter list focused on the most common relationships. The
+thresholds should therefore be interpreted together with support, confidence, and lift rather
+than as evidence that every retained rule is important.
+
 % ================= BODY =================
 
-\section{Understand the Data}
+	extbf{\TopConfidenceRule}, confidence = \textbf{\TopConfidenceValue}
 
 \subsection{Number of transactions}
-The Groceries dataset contains \textbf{9{,}835 transactions}, each representing one customer's
+	extbf{\TopLiftRule}, lift = \textbf{\TopLiftValue}
 market basket.
 
-\subsection{Number of unique items}
-The dataset contains \textbf{169 unique grocery items}.
+	extbf{\TopSupportRule}, support = \textbf{\TopSupportValue}
+The dataset contains \textbf{\UniqueItemCount unique grocery items}.
 
 \subsection{Ten most frequently purchased items}
 
@@ -102,7 +113,7 @@ shopping trip.
 
 Using a minimum support threshold of \textbf{0.02} (i.e.\ the itemset appears in at least
 2\% of all transactions) and a minimum itemset size of 2, the analysis identified
-\textbf{63 frequent itemsets} (61 pairs and 2 triples). Table~\ref{tab:itemsets} lists the
+\textbf{\ItemsetCount frequent itemsets} (61 pairs and 2 triples). Table~\ref{tab:itemsets} lists the
 top 10 by support.
 
 \begin{table}[H]
@@ -162,7 +173,7 @@ itemset $X$ (with $T$ the set of all transactions):
 \subsection{At least 10 association rules}
 
 Rules were generated from the frequent itemsets above using a minimum confidence of
-\textbf{0.25}, yielding \textbf{49 rules} in total. Table~\ref{tab:rules} lists the top 12,
+\textbf{\MinConfidence}, yielding \textbf{\RuleCount rules} in total. Table~\ref{tab:rules} lists the top 12,
 sorted by lift.
 
 \begin{table}[H]
@@ -348,5 +359,31 @@ often than would be expected if they were purchased independently. The further a
 stronger the association (lift $= 1$ means no association / statistical independence, and
 lift $< 1$ indicates a negative association, where buying one item makes the other
 \emph{less} likely).
+
+\clearpage
+\section{Limitations and Responsible Use}
+
+The results describe this transaction sample under the selected thresholds; they do not
+establish that the rules will hold in every store, season, or customer segment. Rare rules
+are especially sensitive to a small number of baskets, and repeated searches over many
+possible rules increase the chance of finding apparently impressive patterns by chance.
+The analysis also treats each transaction as a basket and does not include price, quantity,
+customer identity, time, promotion, or store-location information. These omitted variables
+could explain part of the observed associations.
+
+For a production recommendation system, candidate rules should therefore be tested on a
+later holdout period or a different store before deployment. A/B testing product placement
+or recommendation messages would be needed to estimate whether a proposed intervention
+actually changes purchasing behaviour.
+
+\subsection{Choosing a rule for a business decision}
+
+The appropriate metric depends on the decision. High-support rules are useful for broad
+inventory and store-layout decisions because they affect many baskets. High-confidence rules
+are useful when the business wants a reliable follow-up recommendation after an antecedent
+has already been observed. High-lift rules are useful for targeted cross-selling because they
+identify combinations that are unusually strong relative to the consequent's baseline
+popularity. In all three cases, the metric should be considered alongside support: a very
+high lift based on only a handful of transactions may not be stable enough to act on.
 
 \end{document}
